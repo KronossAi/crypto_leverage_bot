@@ -25,6 +25,7 @@ from engine.paper_engine    import PaperEngine
 from engine.live_engine     import LiveEngine
 from engine.switcher        import ModeSwitcher
 from strategies.orchestrator import Orchestrator
+from core.state_manager     import StateManager
 from notifications.telegram_bot import TelegramNotifier
 from dashboard.cli_dashboard    import CLIDashboard
 
@@ -138,7 +139,10 @@ class TradingBot:
 
         if not paper_mode:
             await self.live_engine.start()
-
+        # State persistence
+        self.state_mgr = StateManager()
+        self.state_mgr.load(self.portfolio, self.paper_engine.fsm if paper_mode else self.live_engine.fsm)
+        self.paper_engine.state_mgr = self.state_mgr
         # 5. Orchestrator
         self.orchestrator = Orchestrator(
             self.config, self.strat_cfg, self.cvd_trackers

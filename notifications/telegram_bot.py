@@ -77,6 +77,7 @@ class TelegramNotifier:
             CommandHandler("pause",     self._cmd_pause),
             CommandHandler("resume",    self._cmd_resume),
             CommandHandler("switch",    self._cmd_switch),
+            CommandHandler("reset_paper", self._cmd_reset_paper),
             CallbackQueryHandler(self._on_callback),
         ]
         for h in handlers:
@@ -93,6 +94,7 @@ class TelegramNotifier:
             "/pause     — suspendre les trades\n"
             "/resume    — reprendre le trading\n"
             "/switch    — basculer paper/live\n"
+            "/reset    — remettre le paper trading a zero\n"
         )
         await update.message.reply_text(text)
 
@@ -152,6 +154,23 @@ class TelegramNotifier:
         await update.message.reply_text("Trading repris")
         logger.info("Trading repris via Telegram")
 
+    async def _cmd_reset_paper(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        if not self._is_authorized(update):
+            return
+        if not self.bot_ref:
+            return
+        if self.bot_ref.mode != "paper":
+            await update.message.reply_text("Reset disponible uniquement en mode PAPER")
+            return
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("Confirmer reset", callback_data="confirm_reset"),
+            InlineKeyboardButton("Annuler", callback_data="cancel"),
+        ]])
+        await update.message.reply_text(
+            "Reset paper trading ?\n\nCela effacera toutes les positions et trades.",
+            reply_markup=keyboard,
+        )
+
     async def _cmd_switch(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if not self._is_authorized(update):
             return
@@ -187,6 +206,23 @@ class TelegramNotifier:
                 await self.send_message(
                     "MODE LIVE ACTIVE" if ok else "Bascule annulee"
                 )
+        elif data == "switch_paper":
+            await query.edit_message_text("Bascule PAPER en cours...")
+            if self.bot_ref:
+                await self.bot_ref.switcher.switch_to_paper()
+        elif data == "confirm_reset":
+            if self.bot_ref and self.bot_ref.mode == "paper":
+                initial_cap = float(self.bot_ref.config["capital"]["initial"])
+                self.bot_ref.state_mgr.reset_paper(
+                    self.bot_ref.portfolio,
+                    self.bot_ref.paper_engine.fsm,
+                    initial_cap,
+                )
+                self.bot_ref.circuit.start_day(initial_cap)
+                await query.edit_message_text(
+                    f"Paper trading remis a zero\nCapital : {initial_cap:.2f} USDC"
+                )
+                logger.info("Paper trading reset via Telegram")
         elif data == "switch_paper":
             await query.edit_message_text("Bascule PAPER en cours...")
             if self.bot_ref:

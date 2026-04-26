@@ -25,6 +25,7 @@ class PaperEngine:
         self._funding: dict[str, datetime] = {}
 
         self.max_daily_trades = config["limits"]["max_trades_per_day"]
+        self.state_mgr = None  # Branché depuis bot.py
 
     async def on_signal(self, signal: TradeSignal, circuit_breaker=None):
         # Limite journalière
@@ -144,6 +145,8 @@ class PaperEngine:
             opened_at=ctx.open_time,
         )
         self.port.record_trade(trade)
+        if self.state_mgr:
+            self.state_mgr.save(self.port, self.fsm)
         self.risk.update_peak(self.port.capital)
 
         emoji = "✅" if ctx.pnl_usdc >= 0 else "❌"
