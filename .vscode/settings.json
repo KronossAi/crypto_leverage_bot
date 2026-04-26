@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\venv311\\Scripts\\python.exe",
+  "genieai.enableGenerateCommitMessage": true,
+  "genieai.enableConversationHistory": true
+}

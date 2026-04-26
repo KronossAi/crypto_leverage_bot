@@ -1,0 +1,62 @@
+mode: "paper"
+
+exchange:
+  name: "hyperliquid"
+  testnet: true
+
+capital:
+  initial: 200
+  monthly_add: 100
+  max_drawdown_pct: 12
+  risk_per_trade_pct: 1.0
+  daily_loss_limit_pct: 5.0      # Circuit breaker journalier
+
+leverage:
+  default: 5
+  max: 10
+
+pairs:
+  - "BTC"
+  - "ETH"
+  - "SOL"
+  - "XRP"
+  - "XLM"
+
+timeframes:
+  htf: "4h"
+  mtf: "1h"
+  ltf: "5m"
+  trigger: "1m"
+
+# Limites journalières
+limits:
+  max_trades_per_day: 12
+  consecutive_loss_pause_h: 2
+  max_consecutive_losses: 3
+
+# Corrélations
+correlations:
+  btc_lead_lag_min: 10           # Lag BTC → alts en minutes
+  eth_btc_corr_threshold: 0.85
+  btcd_long_threshold: 45.0      # BTC.D% en dessous → long alts
+  btcd_short_threshold: 48.0     # BTC.D% au dessus → short alts
+
+# Funding rate
+funding:
+  long_block_threshold: 0.001    # >0.1% → évite les longs
+  short_block_threshold: -0.0005 # <-0.05% → évite les shorts
+  extreme_negative: -0.002       # Squeeze probable
+
+# Macro filter
+macro:
+  blackout_minutes_before: 30
+  blackout_minutes_after: 30
+  oi_drop_threshold_pct: 15      # OI chute >15% en 5min → fermer tout
+
+# ATR regime
+regime:
+  hv_multiplier: 1.5             # ATR14 > ATR50 × 1.5 → HV
+  lv_multiplier: 0.8             # ATR14 < ATR50 × 0.8 → LV
+  atr_spike_multiplier: 3.0      # ATR spike >300% → kill switch
+
+max_concurrent_positions: 3

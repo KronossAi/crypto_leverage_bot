@@ -1,0 +1,45 @@
+momentum:
+  enabled: true
+  ema_fast: 9
+  ema_slow: 21
+  volume_spike_mult: 2.0
+  atr_period: 14
+  sl_atr_mult: 1.5
+  tp1_ratio: 1.5
+  tp2_ratio: 3.0
+  tp1_close_pct: 0.5             # Ferme 50% à TP1
+  regimes: ["hv"]                # Actif seulement en HV
+
+smc:
+  enabled: true
+  bos_confirmation: true
+  fvg_min_size_pct: 0.15
+  ob_lookback: 50
+  sl_pct: 1.2
+  tp1_ratio: 1.5
+  tp2_ratio: 3.0
+  tp1_close_pct: 0.5
+  regimes: ["hv", "lv"]
+
+mean_reversion:
+  enabled: true
+  bb_period: 20
+  bb_std: 2.0
+  rsi_period: 14
+  rsi_oversold: 30
+  rsi_overbought: 70
+  sl_pct: 0.8
+  tp1_ratio: 1.5
+  tp2_ratio: 3.0
+  tp1_close_pct: 0.5
+  regimes: ["lv"]                # Actif seulement en LV
+
+avwap:
+  enabled: true
+  lookback_swings: 50
+  cvd_confirmation: true
+  sl_pct: 1.0
+  tp1_ratio: 1.5
+  tp2_ratio: 3.0
+  tp1_close_pct: 0.5
+  regimes: ["hv", "lv"]
