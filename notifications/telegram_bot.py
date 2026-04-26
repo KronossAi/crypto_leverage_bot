@@ -223,11 +223,6 @@ class TelegramNotifier:
                     f"Paper trading remis a zero\nCapital : {initial_cap:.2f} USDC"
                 )
                 logger.info("Paper trading reset via Telegram")
-        elif data == "switch_paper":
-            await query.edit_message_text("Bascule PAPER en cours...")
-            if self.bot_ref:
-                await self.bot_ref.switcher.switch_to_paper()
-                await self.send_message("MODE PAPER ACTIVE")
         elif data == "cancel":
             await query.edit_message_text("Operation annulee")
 

@@ -72,6 +72,7 @@ class DataFeed:
         # Callbacks
         self._tick_callbacks: list[Callable] = []
         self._bar_callbacks:  list[Callable] = []
+        self._trade_callbacks: list[Callable] = []
 
         self._ws_task: Optional[asyncio.Task] = None
         self._running = False
@@ -84,6 +85,8 @@ class DataFeed:
     def on_bar(self, callback: Callable):
         self._bar_callbacks.append(callback)
 
+    def on_trade(self, callback: Callable):
+        self._trade_callbacks.append(callback)
     # ─── Accesseurs ──────────────────────────────────────────────────────
 
     def get_last_price(self, symbol: str) -> Optional[float]:
@@ -261,10 +264,16 @@ class DataFeed:
             if not symbol_hl:
                 return
             price = float(data.get("p", 0))
-            if price > 0:
-                self._last_price[symbol_hl] = price
-                for cb in self._tick_callbacks:
-                    await cb(symbol_hl, price)
+                if price > 0:
+                    self._last_price[symbol_hl] = price
+                    for cb in self._tick_callbacks:
+                        await cb(symbol_hl, price)
+
+                        is_buyer_maker = data.get("m", False)
+                        qty = float(data.get("q", 0))
+                        for cb in self._trade_callbacks:
+                            await cb(symbol_hl, price, qty, is_buyer_maker)
+
         except Exception as e:
             logger.error(f"Erreur _on_trade: {e}")
 
