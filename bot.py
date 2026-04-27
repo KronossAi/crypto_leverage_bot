@@ -21,6 +21,8 @@ from core.circuit_breaker   import CircuitBreaker
 from data.feed              import DataFeed
 from data.indicators        import CVDTracker
 from data.scalp_orderflow import OrderFlowRegistry
+from data.scalp_levels import OBIRegistry
+from data.scalp_timing import VWAPRegistry
 from data.macro_filter      import MacroFilter
 from engine.paper_engine    import PaperEngine
 from engine.live_engine     import LiveEngine
@@ -106,6 +108,8 @@ class TradingBot:
             pairs      = self.config["pairs"],
             tf_seconds = 60,
         )
+        self.obi  = OBIRegistry(pairs=self.config["pairs"])
+        self.vwap = VWAPRegistry(pairs=self.config["pairs"])
         # Funding rates en cache
         self.funding_rates: dict[str, float] = {}
 
@@ -155,6 +159,8 @@ class TradingBot:
 
         # 6. Switcher
         self.orchestrator.orderflow = self.orderflow
+        self.orchestrator.obi = self.obi
+        self.orchestrator.vwap = self.vwap
         self.switcher = ModeSwitcher(self)
 
         # 7. Telegram
@@ -218,6 +224,10 @@ class TradingBot:
         self.feed.on_bar(on_bar)
         if hasattr(self.feed, "on_trade"):
             self.feed.on_trade(on_trade)
+        async def on_depth(symbol, bids, asks, ts, price):
+            self.obi.on_depth_update(symbol, bids, asks, ts, price)
+
+        self.feed.on_depth(on_depth)
 
     # ─── Boucle principale ────────────────────────────────────────────────
 

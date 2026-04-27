@@ -38,6 +38,8 @@ class Orchestrator:
         # Frais Hyperliquid (0.02% maker + 0.05% taker)
         self.fee_rt         = 0.001  # aller-retour conservateur
         self.orderflow = None
+        self.obi = None
+        self.vwap = None
 
     async def analyze(
         self,
@@ -145,6 +147,34 @@ class Orchestrator:
                     confidence = min(confidence + 0.10, 0.95)
                 elif of.side and of.side != side:
                     confidence = max(confidence - 0.10, 0.10)
+
+        if self.orderflow:
+            tape = self.orderflow.analyze_tape(symbol)
+            if tape.get("score", 0) >= 50:
+                if tape.get("side") == side:
+                    confidence = min(confidence + 0.05, 0.95)
+                elif tape.get("side") and tape.get("side") != side:
+                    confidence = max(confidence - 0.05, 0.10)
+
+        if self.obi:
+            obi = self.obi.analyze(symbol, entry)
+            if obi.vpin_toxic:
+                logger.debug(f"[OBI] {symbol} VPIN toxique — trade bloque")
+                return None
+            if obi.score >= 50:
+                if obi.side == side:
+                    confidence = min(confidence + 0.08, 0.95)
+                elif obi.side and obi.side != side:
+                    confidence = max(confidence - 0.08, 0.10)
+
+        if self.vwap:
+            ohlcv  = feed.get_ohlcv(symbol, timeframes["mtf"])
+            vsig   = self.vwap.update(symbol, ohlcv)
+            if vsig and vsig.score >= 40:
+                if vsig.side == side:
+                    confidence = min(confidence + 0.07, 0.95)
+                elif vsig.side and vsig.side != side:
+                    confidence = max(confidence - 0.07, 0.10)
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
