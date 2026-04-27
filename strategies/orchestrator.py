@@ -15,6 +15,7 @@ from core.risk_manager   import TradeSignal
 from data.indicators     import get_atr, calc_smc
 from data.scalp_levels_key import KeyLevelsRegistry
 from data.scalp_oi import OIRegistry
+from data.scalp_liquidations import LiquidationRegistry
 from strategies.layer1   import Layer1
 from strategies.layer2   import Layer2
 from strategies.layer3   import Layer3
@@ -44,6 +45,7 @@ class Orchestrator:
         self.vwap = None
         self.key_levels = KeyLevelsRegistry.get()
         self.oi_engine = OIRegistry.get()
+        self.liq_engine = LiquidationRegistry.get()
 
     async def analyze(
         self,
@@ -195,6 +197,12 @@ class Orchestrator:
         confidence = max(0.10, min(confidence + oi_boost, 0.95))
         if oi_reasons:
             logger.info(f"[OI] {symbol} score={oi_score} boost={oi_boost:+.2f} — {oi_reasons}")
+            # --- Module 7 — Liquidation Heatmap ---
+        liq_score, liq_reasons = await self.liq_engine.analyze(symbol, entry, side)
+        liq_boost = self.liq_engine.boost_confidence(liq_score)
+        confidence = max(0.10, min(confidence + liq_boost, 0.95))
+        if liq_reasons:
+            logger.info(f"[LiqHeatmap] {symbol} score={liq_score} boost={liq_boost:+.2f} — {liq_reasons}")
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
