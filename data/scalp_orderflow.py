@@ -522,14 +522,26 @@ class OrderFlowRegistry:
         }
         for e in self._engines.values():
             e._current_tf_seconds = tf_seconds
+            self._tape_readers: dict[str, TapeReader] = {
+            s: TapeReader(s) for s in pairs
+        }
 
     def on_trade(self, symbol, price, qty, is_buyer_maker, timestamp_ms):
         e = self._engines.get(symbol)
         if e:
             e.on_trade(price, qty, is_buyer_maker, timestamp_ms)
+            t = self._tape_readers.get(symbol)
+        if t:
+            t.on_trade(price, qty, is_buyer_maker, timestamp_ms)
 
     def analyze(self, symbol: str, current_price: float) -> OrderFlowSignal:
         e = self._engines.get(symbol)
         if not e:
             return OrderFlowSignal(symbol=symbol, timestamp=int(time.time()*1000))
         return e.analyze(current_price)
+    
+    def analyze_tape(self, symbol: str) -> dict:
+        t = self._tape_readers.get(symbol)
+        if not t:
+            return {}
+        return t.analyze()
