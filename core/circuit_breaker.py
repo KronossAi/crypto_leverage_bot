@@ -65,7 +65,8 @@ class CircuitBreaker:
 
         # 2. Pause consécutive
         if self._pause_until and datetime.utcnow() < self._pause_until:
-            remaining = (self._pause_until - datetime.utcnow()).seconds // 60
+            delta     = self._pause_until - datetime.utcnow()
+            remaining = max(0, int(delta.total_seconds() // 60))
             return False, f"Pause consécutive — reprend dans {remaining}min"
 
         # 3. Volatility kill switch

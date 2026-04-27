@@ -1,9 +1,5 @@
 """
-State Manager — persistance de l'état entre redémarrages
-─────────────────────────────────────────────────────────
-- Sauvegarde portfolio + FSM dans data/state.json
-- Rechargement automatique au démarrage
-- Reset manuel (paper trading)
+State Manager — persistance de l'etat entre redemarrages
 """
 import json
 import logging
@@ -26,10 +22,7 @@ class StateManager:
         self.path = os.path.abspath(state_file)
         os.makedirs(os.path.dirname(self.path), exist_ok=True)
 
-    # ─── Sauvegarde ───────────────────────────────────────────────────────
-
     def save(self, portfolio: Portfolio, fsm: TradeFSM):
-        """Sauvegarde l'état complet dans state.json"""
         try:
             state = {
                 "saved_at":        datetime.utcnow().isoformat(),
@@ -40,29 +33,22 @@ class StateManager:
             }
             with open(self.path, "w") as f:
                 json.dump(state, f, indent=2)
-            logger.debug(f"État sauvegardé → {self.path}")
+            logger.debug(f"Etat sauvegarde -> {self.path}")
         except Exception as e:
-            logger.error(f"Erreur sauvegarde état: {e}")
-
-    # ─── Chargement ───────────────────────────────────────────────────────
+            logger.error(f"Erreur sauvegarde etat: {e}")
 
     def load(self, portfolio: Portfolio, fsm: TradeFSM) -> bool:
-        """Charge l'état depuis state.json. Retourne True si succès."""
         if not os.path.exists(self.path):
-            logger.info("Pas d'état sauvegardé — démarrage frais")
+            logger.info("Pas d'etat sauvegarde — demarrage frais")
             return False
         try:
             with open(self.path) as f:
                 state = json.load(f)
-
-            # Restore portfolio
             portfolio.capital         = state["capital"]
             portfolio.initial_capital = state["initial_capital"]
             portfolio.trades          = [
                 self._dict_to_trade(t) for t in state.get("trades", [])
             ]
-
-            # Restore positions ouvertes
             for pos in state.get("positions", []):
                 ctx = fsm.get(pos["symbol"], pos["strategy"])
                 ctx.side        = pos["side"]
@@ -73,45 +59,34 @@ class StateManager:
                 ctx.size_usdc   = pos["size_usdc"]
                 ctx.leverage    = pos["leverage"]
                 ctx.tp1_hit     = pos["tp1_hit"]
+                ctx.tp1_pnl     = pos.get("tp1_pnl", 0.0)
                 ctx.regime      = pos["regime"]
-                ctx.open_time   = datetime.fromisoformat(pos["open_time"]) \
-                                  if pos.get("open_time") else datetime.utcnow()
-                ctx.state       = TradeState[pos["state"]]
-
-            saved_at = state.get("saved_at", "inconnu")
-            n_pos    = len(state.get("positions", []))
-            n_trades = len(state.get("trades", []))
+                ctx.open_time   = (
+                    datetime.fromisoformat(pos["open_time"])
+                    if pos.get("open_time") else datetime.utcnow()
+                )
+                ctx.state = TradeState[pos["state"]]
             logger.info(
-                f"État restauré | Sauvegardé: {saved_at} | "
-                f"Capital: {portfolio.capital:.2f} USDC | "
-                f"Positions: {n_pos} | Trades: {n_trades}"
+                f"Etat restaure | Capital: {portfolio.capital:.2f} USDC | "
+                f"Positions: {len(state.get('positions', []))} | "
+                f"Trades: {len(state.get('trades', []))}"
             )
             return True
         except Exception as e:
-            logger.error(f"Erreur chargement état: {e}")
+            logger.error(f"Erreur chargement etat: {e}")
             return False
 
-    # ─── Reset paper ──────────────────────────────────────────────────────
-
     def reset_paper(self, portfolio: Portfolio, fsm: TradeFSM, initial_capital: float):
-        """Remet à zéro le paper trading"""
         portfolio.capital         = initial_capital
         portfolio.initial_capital = initial_capital
         portfolio.trades          = []
         portfolio._daily_trades   = 0
         portfolio._day_date       = None
-
-        # Ferme toutes les positions simulées
         for ctx in list(fsm.active()):
             ctx.reset()
-
-        # Supprime le fichier de state
         if os.path.exists(self.path):
             os.remove(self.path)
-
-        logger.info(f"🔄 Paper trading reset — Capital: {initial_capital:.2f} USDC")
-
-    # ─── Helpers ──────────────────────────────────────────────────────────
+        logger.info(f"Paper trading reset — Capital: {initial_capital:.2f} USDC")
 
     def _trade_to_dict(self, t: ClosedTrade) -> dict:
         return {
@@ -151,10 +126,14 @@ class StateManager:
             reason      = d["reason"],
             regime      = d["regime"],
             tp1_hit     = d["tp1_hit"],
-            opened_at   = datetime.fromisoformat(d["opened_at"]) \
-                          if d.get("opened_at") else datetime.utcnow(),
-            closed_at   = datetime.fromisoformat(d["closed_at"]) \
-                          if d.get("closed_at") else datetime.utcnow(),
+            opened_at   = (
+                datetime.fromisoformat(d["opened_at"])
+                if d.get("opened_at") else datetime.utcnow()
+            ),
+            closed_at   = (
+                datetime.fromisoformat(d["closed_at"])
+                if d.get("closed_at") else datetime.utcnow()
+            ),
         )
 
     def _ctx_to_dict(self, ctx: TradeContext) -> dict:
@@ -170,6 +149,7 @@ class StateManager:
             "size_usdc":   ctx.size_usdc,
             "leverage":    ctx.leverage,
             "tp1_hit":     ctx.tp1_hit,
+            "tp1_pnl":     ctx.tp1_pnl,
             "regime":      ctx.regime,
             "open_time":   ctx.open_time.isoformat() if ctx.open_time else None,
         }

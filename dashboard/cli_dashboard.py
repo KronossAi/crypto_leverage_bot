@@ -241,7 +241,7 @@ class CLIDashboard:
             table.add_row("[dim]—[/]", "[dim]Aucun trade[/]", "", "", "", "", "")
         else:
             for t in reversed(trades):
-                pnl_c  = "green bold" if t.pnl_usdc >= 0 else "red bold"
+                pnl_c  = "green bold" if t.pnl_net >= 0 else "red bold"
                 dir_c  = "green" if t.side == "long" else "red"
                 reason_icons = {
                     "TP": "🎯", "SL": "🛑",
@@ -257,7 +257,7 @@ class CLIDashboard:
                     t.strategy,
                     f"[{dir_c}]{'▲' if t.side == 'long' else '▼'} {t.side.upper()}[/]",
                     reason_icon,
-                    f"[{pnl_c}]{t.pnl_usdc:+.2f}[/]",
+                    f"[{pnl_c}]{t.pnl_net:+.2f}[/]",
                     f"[{pnl_c}]{t.pnl_pct*100:+.2f}%[/]",
                 )
 

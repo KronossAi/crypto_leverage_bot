@@ -80,6 +80,7 @@ class MacroFilter:
         future.sort(key=lambda x: x[0])
         dt, label = future[0]
         delta = dt - now
-        hours = delta.seconds // 3600
-        mins  = (delta.seconds % 3600) // 60
+        total_s = int(delta.total_seconds())
+        hours   = (total_s % 86400) // 3600
+        mins    = (total_s % 3600) // 60
         return f"{label} dans {delta.days}j {hours}h {mins}min"

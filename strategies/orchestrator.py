@@ -37,6 +37,7 @@ class Orchestrator:
 
         # Frais Hyperliquid (0.02% maker + 0.05% taker)
         self.fee_rt         = 0.001  # aller-retour conservateur
+        self.orderflow = None
 
     async def analyze(
         self,
@@ -134,9 +135,16 @@ class Orchestrator:
         confidence += l2["score"] * 0.1      # +0.1 par signal L2
         if l3["triggered"]:
             confidence += 0.15
-        if regime == "hv" and side in ("long",):
+        if regime == "hv":
             confidence += 0.05
         confidence = min(confidence, 0.95)
+        if self.orderflow:
+            of = self.orderflow.analyze(symbol, entry)
+            if of.score >= 60:
+                if of.side == side:
+                    confidence = min(confidence + 0.10, 0.95)
+                elif of.side and of.side != side:
+                    confidence = max(confidence - 0.10, 0.10)
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
@@ -166,9 +174,13 @@ class Orchestrator:
         ob  = smc.get("order_block") if smc else None
         if ob:
             if side == "long" and ob["type"] == "bullish":
-                sl_dist = max(entry - ob["bottom"], sl_dist)
+                ob_dist = entry - ob["bottom"]
+                if ob_dist > 0:
+                    sl_dist = max(ob_dist, sl_dist)
             elif side == "short" and ob["type"] == "bearish":
-                sl_dist = max(ob["top"] - entry, sl_dist)
+                ob_dist = ob["top"] - entry
+                if ob_dist > 0:
+                    sl_dist = max(ob_dist, sl_dist)
 
         if side == "long":
             sl  = entry - sl_dist

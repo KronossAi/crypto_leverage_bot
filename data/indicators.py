@@ -186,9 +186,9 @@ def calc_rsi(ohlcv: list, period: int = 14) -> Optional[dict]:
         p_prev = float(close.iloc[-2])
 
         # Divergence haussière : prix fait LL, RSI fait HL
-        bull_div = price < p_prev and val > prev
+        bull_div = price < p_prev * 0.999 and val > prev + 1.0
         # Divergence baissière : prix fait HH, RSI fait LH
-        bear_div = price > p_prev and val < prev
+        bear_div = price > p_prev * 1.001 and val < prev - 1.0
 
         return {
             "value":      round(val, 2),

@@ -20,6 +20,7 @@ from core.portfolio         import Portfolio
 from core.circuit_breaker   import CircuitBreaker
 from data.feed              import DataFeed
 from data.indicators        import CVDTracker
+from data.scalp_orderflow import OrderFlowRegistry
 from data.macro_filter      import MacroFilter
 from engine.paper_engine    import PaperEngine
 from engine.live_engine     import LiveEngine
@@ -101,6 +102,10 @@ class TradingBot:
             s: CVDTracker(window=300) for s in self.config["pairs"]
         }
 
+        self.orderflow = OrderFlowRegistry(
+            pairs      = self.config["pairs"],
+            tf_seconds = 60,
+        )
         # Funding rates en cache
         self.funding_rates: dict[str, float] = {}
 
@@ -149,6 +154,7 @@ class TradingBot:
         )
 
         # 6. Switcher
+        self.orchestrator.orderflow = self.orderflow
         self.switcher = ModeSwitcher(self)
 
         # 7. Telegram
@@ -200,6 +206,13 @@ class TradingBot:
             tracker = self.cvd_trackers.get(symbol)
             if tracker:
                 tracker.on_trade(price, qty, is_maker)
+            self.orderflow.on_trade(
+                symbol         = symbol,
+                price          = price,
+                qty            = qty,
+                is_buyer_maker = is_maker,
+                timestamp_ms   = int(time.time() * 1000),
+            )
 
         self.feed.on_tick(on_tick)
         self.feed.on_bar(on_bar)

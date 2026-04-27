@@ -1,6 +1,5 @@
 """
 FSM — cycle de vie avec TP1/TP2
-IDLE → SIGNAL → OPEN → TP1_HIT → MANAGE → CLOSE
 """
 from enum import Enum, auto
 from dataclasses import dataclass, field
@@ -15,45 +14,48 @@ class TradeState(Enum):
     IDLE    = auto()
     SIGNAL  = auto()
     OPEN    = auto()
-    TP1_HIT = auto()   # 50% fermé, trailing sur le reste
-    MANAGE  = auto()   # Trailing stop actif
+    TP1_HIT = auto()
+    MANAGE  = auto()
     CLOSE   = auto()
 
 
 @dataclass
 class TradeContext:
-    symbol:        str
-    strategy:      str
-    state:         TradeState = TradeState.IDLE
-    side:          Optional[str]   = None
-    entry_price:   Optional[float] = None
-    sl:            Optional[float] = None
-    tp1:           Optional[float] = None
-    tp2:           Optional[float] = None
-    size_usdc:     float = 0.0
+    symbol:         str
+    strategy:       str
+    state:          TradeState     = TradeState.IDLE
+    side:           Optional[str]  = None
+    entry_price:    Optional[float] = None
+    sl:             Optional[float] = None
+    tp1:            Optional[float] = None
+    tp2:            Optional[float] = None
+    size_usdc:      float = 0.0
     size_contracts: float = 0.0
-    leverage:      int   = 1
-    open_time:     Optional[datetime] = None
-    close_price:   Optional[float] = None
-    pnl_usdc:      float = 0.0
-    pnl_pct:       float = 0.0
-    fees_paid:     float = 0.0
-    close_reason:  Optional[str] = None
-    order_id:      Optional[str] = None
-    tp1_order_id:  Optional[str] = None
-    tp2_order_id:  Optional[str] = None
-    tp1_hit:       bool  = False
-    regime:        str   = "normal"
-    history:       list  = field(default_factory=list)
+    leverage:       int   = 1
+    open_time:      Optional[datetime] = None
+    close_price:    Optional[float] = None
+    pnl_usdc:       float = 0.0
+    pnl_pct:        float = 0.0
+    tp1_pnl:        float = 0.0
+    fees_paid:      float = 0.0
+    close_reason:   Optional[str] = None
+    order_id:       Optional[str] = None
+    tp1_order_id:   Optional[str] = None
+    tp2_order_id:   Optional[str] = None
+    tp1_hit:        bool  = False
+    regime:         str   = "normal"
+    history:        list  = field(default_factory=list)
 
     def transition(self, new_state: TradeState, **meta):
         old        = self.state
         self.state = new_state
         self.history.append({
-            "from": old.name, "to": new_state.name,
-            "ts": datetime.utcnow().isoformat(), **meta
+            "from": old.name,
+            "to":   new_state.name,
+            "ts":   datetime.utcnow().isoformat(),
+            **meta
         })
-        logger.info(f"[{self.symbol}] {old.name} → {new_state.name}")
+        logger.info(f"[{self.symbol}] {old.name} -> {new_state.name}")
 
     def on_signal(self, side, entry, sl, tp1, tp2):
         self.side        = side
@@ -71,11 +73,10 @@ class TradeContext:
         self.open_time      = datetime.utcnow()
         self.transition(TradeState.OPEN)
 
-    def on_tp1_hit(self, price: float, fees: float = 0.0):
-        """50% de la position fermée"""
+    def on_tp1_hit(self, price: float, fees: float = 0.0, partial_pnl: float = 0.0):
         self.tp1_hit   = True
+        self.tp1_pnl   = partial_pnl
         self.fees_paid += fees
-        # Déplace le SL au breakeven
         self.sl        = self.entry_price
         self.transition(TradeState.TP1_HIT, tp1_price=price)
 
@@ -84,24 +85,35 @@ class TradeContext:
         self.transition(TradeState.MANAGE, sl=new_sl)
 
     def on_close(self, close_price: float, reason: str, fees: float = 0.0):
-        self.close_price   = close_price
-        self.close_reason  = reason
-        self.fees_paid    += fees
+        self.close_price  = close_price
+        self.close_reason = reason
+        self.fees_paid   += fees
         if self.entry_price and self.side:
             if self.side == "long":
                 self.pnl_pct = (close_price - self.entry_price) / self.entry_price
             else:
                 self.pnl_pct = (self.entry_price - close_price) / self.entry_price
-            gross_pnl    = self.size_usdc * self.pnl_pct * self.leverage
-            self.pnl_usdc = gross_pnl - self.fees_paid
+            remaining     = 0.5 if self.tp1_hit else 1.0
+            gross_pnl     = self.size_usdc * remaining * self.pnl_pct * self.leverage
+            self.pnl_usdc = gross_pnl + self.tp1_pnl - self.fees_paid
         self.transition(TradeState.CLOSE, reason=reason, pnl=round(self.pnl_usdc, 4))
 
     def reset(self):
-        self.side = self.entry_price = self.sl = self.tp1 = self.tp2 = None
-        self.size_usdc = self.pnl_usdc = self.pnl_pct = self.fees_paid = 0.0
+        self.side           = None
+        self.entry_price    = None
+        self.sl             = None
+        self.tp1            = None
+        self.tp2            = None
+        self.size_usdc      = 0.0
         self.size_contracts = 0.0
-        self.open_time = self.close_price = self.order_id = None
-        self.tp1_hit   = False
+        self.pnl_usdc       = 0.0
+        self.pnl_pct        = 0.0
+        self.tp1_pnl        = 0.0
+        self.fees_paid      = 0.0
+        self.open_time      = None
+        self.close_price    = None
+        self.order_id       = None
+        self.tp1_hit        = False
         self.transition(TradeState.IDLE)
 
 
@@ -137,6 +149,7 @@ class TradeFSM:
                 "tp2":      c.tp2,
                 "pnl":      round(c.pnl_usdc, 4),
                 "tp1_hit":  c.tp1_hit,
+                "tp1_pnl":  round(c.tp1_pnl, 4),
                 "regime":   c.regime,
             }
             for c in self._ctx.values()
