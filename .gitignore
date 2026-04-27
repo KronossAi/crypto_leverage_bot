@@ -4,3 +4,6 @@ __pycache__/
 .env
 logs/
 *.log
+data/*.save
+data/*.save.1
+data/state.json
