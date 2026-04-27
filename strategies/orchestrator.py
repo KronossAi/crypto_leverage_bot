@@ -13,6 +13,7 @@ from typing import Optional
 
 from core.risk_manager   import TradeSignal
 from data.indicators     import get_atr, calc_smc
+from data.scalp_levels_key import KeyLevelsRegistry
 from strategies.layer1   import Layer1
 from strategies.layer2   import Layer2
 from strategies.layer3   import Layer3
@@ -40,6 +41,7 @@ class Orchestrator:
         self.orderflow = None
         self.obi = None
         self.vwap = None
+        self.key_levels = KeyLevelsRegistry.get()
 
     async def analyze(
         self,
@@ -175,6 +177,16 @@ class Orchestrator:
                     confidence = min(confidence + 0.07, 0.95)
                 elif vsig.side and vsig.side != side:
                     confidence = max(confidence - 0.07, 0.10)
+                    # --- Module 5 — Niveaux clés ---
+        ohlcv_1h = feed.get_ohlcv(symbol, timeframes["ltf"])
+        ohlcv_1d = feed.get_ohlcv(symbol, "1d")
+        ohlcv_1w = feed.get_ohlcv(symbol, "1w")
+        self.key_levels.update(symbol, ohlcv_1h, ohlcv_1d, ohlcv_1w)
+        kl_score, kl_reasons = self.key_levels.get_score(symbol, entry, side)
+        kl_boost = self.key_levels.boost_confidence(kl_score)
+        confidence = max(0.10, min(confidence + kl_boost, 0.95))
+        if kl_reasons:
+            logger.info(f"[KeyLevels] {symbol} score={kl_score} boost={kl_boost:+.2f} — {kl_reasons}")
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
