@@ -14,6 +14,7 @@ from typing import Optional
 from core.risk_manager   import TradeSignal
 from data.indicators     import get_atr, calc_smc
 from data.scalp_levels_key import KeyLevelsRegistry
+from data.scalp_oi import OIRegistry
 from strategies.layer1   import Layer1
 from strategies.layer2   import Layer2
 from strategies.layer3   import Layer3
@@ -42,6 +43,7 @@ class Orchestrator:
         self.obi = None
         self.vwap = None
         self.key_levels = KeyLevelsRegistry.get()
+        self.oi_engine = OIRegistry.get()
 
     async def analyze(
         self,
@@ -187,6 +189,12 @@ class Orchestrator:
         confidence = max(0.10, min(confidence + kl_boost, 0.95))
         if kl_reasons:
             logger.info(f"[KeyLevels] {symbol} score={kl_score} boost={kl_boost:+.2f} — {kl_reasons}")
+            # --- Module 6 — Open Interest + Long/Short Ratio ---
+        oi_score, oi_reasons = await self.oi_engine.analyze(symbol, entry, side)
+        oi_boost = self.oi_engine.boost_confidence(oi_score)
+        confidence = max(0.10, min(confidence + oi_boost, 0.95))
+        if oi_reasons:
+            logger.info(f"[OI] {symbol} score={oi_score} boost={oi_boost:+.2f} — {oi_reasons}")
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
