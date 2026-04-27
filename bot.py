@@ -11,6 +11,7 @@ from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
 import yaml
+import time
 from dotenv import load_dotenv
 from pythonjsonlogger import jsonlogger
 
@@ -23,6 +24,7 @@ from data.indicators        import CVDTracker
 from data.scalp_orderflow import OrderFlowRegistry
 from data.scalp_levels import OBIRegistry
 from data.scalp_timing import VWAPRegistry
+from data.scalp_liquidations import LiquidationRegistry
 from data.macro_filter      import MacroFilter
 from engine.paper_engine    import PaperEngine
 from engine.live_engine     import LiveEngine
@@ -110,6 +112,7 @@ class TradingBot:
         )
         self.obi  = OBIRegistry(pairs=self.config["pairs"])
         self.vwap = VWAPRegistry(pairs=self.config["pairs"])
+        self.liq_heatmap = LiquidationRegistry.get()
         # Funding rates en cache
         self.funding_rates: dict[str, float] = {}
 
@@ -127,6 +130,8 @@ class TradingBot:
         # 2. Data feed
         self.feed = DataFeed(self.exchange, self.config)
         await self.feed.initialize()
+        # Module 7 — Démarrage WebSocket liquidations
+        await self.liq_heatmap.start()
 
         # 3. Risk + Portfolio + Circuit Breaker + Macro
         self.risk    = RiskManager(self.config)
