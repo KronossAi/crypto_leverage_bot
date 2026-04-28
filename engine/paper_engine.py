@@ -17,7 +17,7 @@ FUNDING_RATE_DEFAULT = 0.0001
 
 
 class PaperEngine:
-    def __init__(self, risk_manager: RiskManager, portfolio: Portfolio, config: dict):
+    def __init__(self, risk_manager: RiskManager, portfolio: Portfolio, config: dict, telegram=None):
         self.risk     = risk_manager
         self.port     = portfolio
         self.config   = config
@@ -25,6 +25,7 @@ class PaperEngine:
         self._funding: dict[str, datetime] = {}
         self.max_daily_trades = config["limits"]["max_trades_per_day"]
         self.state_mgr = None
+        self.telegram  = telegram  # injecté pour notifications
 
     async def on_signal(self, signal: TradeSignal, circuit_breaker=None):
         if self.port.daily_trades_count() >= self.max_daily_trades:
@@ -58,6 +59,18 @@ class PaperEngine:
             f"TP1: {order.tp1:.4f} | TP2: {order.tp2:.4f} | "
             f"Size: {order.size_usdc:.2f} USDC | Lev: {order.leverage}x"
         )
+        # Notification Telegram d'ouverture (1x par position réelle)
+        if self.telegram:
+            try:
+                await self.telegram.notify_trade_open(
+                    symbol=signal.symbol, side=signal.side,
+                    entry=exec_price, sl=order.sl,
+                    tp=order.tp2, size_usdc=order.size_usdc,
+                    leverage=order.leverage, strategy=signal.strategy,
+                    confidence=signal.confidence,
+                )
+            except Exception as e:
+                logger.error(f"[Telegram] Erreur notify_trade_open: {e}")
 
     async def on_tick(self, symbol: str, price: float, circuit_breaker=None):
         for ctx in list(self.fsm.active()):
@@ -82,6 +95,20 @@ class PaperEngine:
                         f"[PAPER] TP1 touche {symbol} @ {price:.4f} | "
                         f"PnL partiel net: +{partial_pnl:.2f} USDC"
                     )
+                    # Notification Telegram TP1 hit
+                    if self.telegram:
+                        try:
+                            await self.telegram.send_message(
+                                f"TP1 touche\n\n"
+                                f"Paire    : {symbol}\n"
+                                f"Direction: {ctx.side.upper()}\n"
+                                f"Prix TP1 : {price:.4f}\n"
+                                f"PnL part.: +{partial_pnl:.2f} USDC\n"
+                                f"SL deplace a breakeven\n"
+                                f"Capital  : {self.port.capital:.2f} USDC"
+                            )
+                        except Exception as e:
+                            logger.error(f"[Telegram] Erreur notif TP1: {e}")
                     continue
             sl_hit = (
                 (ctx.side == "long"  and price <= ctx.sl) or
@@ -146,6 +173,18 @@ class PaperEngine:
             f"PnL net total: {ctx.pnl_usdc:+.2f} USDC | "
             f"Capital: {self.port.capital:.2f} USDC"
         )
+        # Notification Telegram de fermeture
+        if self.telegram:
+            try:
+                await self.telegram.notify_trade_close(
+                    symbol=ctx.symbol, side=ctx.side,
+                    entry=ctx.entry_price, close=price,
+                    pnl_usdc=ctx.pnl_usdc, pnl_pct=ctx.pnl_pct,
+                    reason=reason, strategy=ctx.strategy,
+                    capital=self.port.capital,
+                )
+            except Exception as e:
+                logger.error(f"[Telegram] Erreur notify_trade_close: {e}")
         ctx.reset()
 
     async def _trailing(self, ctx, price: float):

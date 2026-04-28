@@ -174,6 +174,9 @@ class TradingBot:
         if tg_token and tg_chat_id:
             self.telegram = TelegramNotifier(tg_token, tg_chat_id, bot_ref=self)
             await self.telegram.start()
+            # Injecte la référence Telegram dans le paper_engine
+            if self.paper_engine:
+                self.paper_engine.telegram = self.telegram
         else:
             self.logger.warning("Telegram non configure")
 
@@ -288,20 +291,7 @@ class TradingBot:
                 return
 
             await self.active_engine.on_signal(signal, self.circuit)
-
-            if self.telegram:
-                order = self.risk.calculate_position(
-                    signal, self.portfolio.capital,
-                    self.active_engine.fsm.count_open(),
-                )
-                if order:
-                    await self.telegram.notify_trade_open(
-                        symbol=signal.symbol, side=signal.side,
-                        entry=signal.entry, sl=signal.sl,
-                        tp=signal.tp2, size_usdc=order.size_usdc,
-                        leverage=order.leverage, strategy=signal.strategy,
-                        confidence=signal.confidence,
-                    )
+            # Note: notification Telegram déplacée dans paper_engine (1 seule notif par position réelle)
 
         except Exception as e:
             self.logger.error(f"Erreur analyse {symbol}: {e}")
