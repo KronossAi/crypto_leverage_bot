@@ -82,29 +82,49 @@ class Orchestrator:
         if circuit_breaker.volatility_kill:
             return None
 
-        # ── 2. Layer 1 — HTF bias ─────────────────────────────────────────
+        # ── 2. Layer 1 — HTF bias (informatif, pas dictateur) ────────────
         l1 = self.layer1.evaluate(symbol, feed, timeframes, funding_rates)
-        if not l1["valid"]:
-            logger.debug(f"[{symbol}] L1 invalid: {l1['reasons'][-1]}")
+        # On NE retourne PAS si L1 invalid — c'est juste un hint pour L2
+        htf_hint = l1["bias"] if l1.get("valid") else "neutral"
+        l1_funding_block = not l1.get("valid") and "Funding" in l1["reasons"][-1]
+        if l1_funding_block:
+            # Funding extrême = vrai blocage, on respecte
+            logger.info(f"[{symbol}] L1 funding block: {l1['reasons'][-1]}")
             return None
 
-        side = l1["bias"]  # "long" ou "short"
-
-        # Vérifie compatibilité régime / stratégie
-        if not self._regime_allows(regime, side):
-            logger.debug(f"[{symbol}] Régime {regime} incompatible")
-            return None
-
-        # ── 3. Layer 2 — MTF confluence ───────────────────────────────────
-        l2 = self.layer2.evaluate(symbol, side, feed, timeframes)
+        # ── 3. Layer 2 — MTF vote sa propre direction ─────────────────────
+        l2 = self.layer2.evaluate(symbol, feed, timeframes, htf_hint=htf_hint)
         if not l2["valid"]:
-            logger.debug(f"[{symbol}] L2 invalid: {l2['reasons'][-1]}")
+            logger.info(f"[{symbol}] L2 invalid: {l2['reasons'][-1]}")
             return None
+
+        side = l2["side"]  # "long" ou "short" — déterminé par L2
+
+        # Vérifie compatibilité régime
+        if not self._regime_allows(regime, side):
+            logger.info(f"[{symbol}] Régime {regime} incompatible")
+            return None
+
+        # ── 3b. Validation L1 vs L2 — détection contre-tendance brutale ──
+        l1_aligned = (htf_hint == side)
+        l1_strict_against = False
+        btc_ohlcv = feed.get_ohlcv("BTC", timeframes["htf"])
+        from data.indicators import calc_ema_trend
+        btc_trend = calc_ema_trend(btc_ohlcv) if btc_ohlcv else None
+        if btc_trend:
+            # Si L2 dit long mais HTF strictement bearish → BLOQUE
+            if side == "long" and btc_trend.get("strict_bearish"):
+                logger.info(f"[{symbol}] BLOCK — L2 long contre HTF strict_bearish")
+                return None
+            # Si L2 dit short mais HTF strictement bullish → BLOQUE
+            if side == "short" and btc_trend.get("strict_bullish"):
+                logger.info(f"[{symbol}] BLOCK — L2 short contre HTF strict_bullish")
+                return None
 
         # ── 4. Layer 3 — LTF trigger ──────────────────────────────────────
         l3 = self.layer3.evaluate(symbol, side, feed, timeframes)
         if not l3["triggered"]:
-            logger.debug(f"[{symbol}] L3 non déclenché")
+            logger.info(f"[{symbol}] L3 non déclenché")
             return None
 
         entry = l3["entry_price"]
@@ -145,7 +165,15 @@ class Orchestrator:
             confidence += 0.15
         if regime == "hv":
             confidence += 0.05
-        confidence = min(confidence, 0.95)
+        # Bonus si L1 aligné avec L2 (confluence HTF)
+        if l1_aligned:
+            confidence += 0.10
+            logger.info(f"[{symbol}] L1↔L2 aligned → confidence +10%")
+        else:
+            # Counter-trend permis mais malus
+            confidence -= 0.05
+            logger.info(f"[{symbol}] L1↔L2 divergent → confidence -5% (counter-trend)")
+        confidence = max(0.10, min(confidence, 0.95))
         if self.orderflow:
             of = self.orderflow.analyze(symbol, entry)
             if of.score >= 60:
