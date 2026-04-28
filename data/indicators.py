@@ -345,24 +345,29 @@ def calc_avwap(ohlcv: list, anchor_type: str = "swing_low") -> Optional[dict]:
 
 def _find_swing(
     high: pd.Series, low: pd.Series,
-    swing_type: str, lookback: int = 10
+    swing_type: str, lookback: int = 5
 ) -> Optional[int]:
-    """Trouve l'index du dernier swing high ou low"""
+    """
+    Retourne l'index du DERNIER swing (le plus récent), pas le plus extrême.
+    AVWAP doit être ancré sur un swing récent pour rester réactif.
+    Fallback : si aucun swing trouvé, retourne lookback (ancrage proche).
+    """
     series = low if swing_type == "swing_low" else high
-    best_val = None
-    best_idx = None
-    for i in range(lookback, len(series) - lookback):
+    last_idx = None
+    # Itère de la fin vers le début → premier match = swing le plus récent
+    for i in range(len(series) - lookback - 1, lookback - 1, -1):
         window = series.iloc[i - lookback: i + lookback + 1]
         val    = series.iloc[i]
         if swing_type == "swing_low" and val == window.min():
-            if best_val is None or val < best_val:
-                best_val = val
-                best_idx = i
+            last_idx = i
+            break
         elif swing_type == "swing_high" and val == window.max():
-            if best_val is None or val > best_val:
-                best_val = val
-                best_idx = i
-    return best_idx
+            last_idx = i
+            break
+    # Fallback : si aucun swing détecté, ancre sur les 20 dernières bougies
+    if last_idx is None:
+        last_idx = max(0, len(series) - 20)
+    return last_idx
 
 
 # ─── SMC ─────────────────────────────────────────────────────────────────────
@@ -383,15 +388,27 @@ def calc_smc(ohlcv: list, cfg: dict) -> Optional[dict]:
         last_sh = swing_highs[-1] if swing_highs else None
         last_sl = swing_lows[-1]  if swing_lows  else None
 
-        bos_bull   = bool(last_sh and price > last_sh)
-        bos_bear   = bool(last_sl and price < last_sl)
+        # BOS strict : cassure du dernier swing
+        bos_bull = bool(last_sh and price > last_sh)
+        bos_bear = bool(last_sl and price < last_sl)
+
+        # Structure HH/HL ou LH/LL (plus permissif, capte la tendance en formation)
+        struct_bull = struct_bear = False
+        if len(swing_highs) >= 2 and len(swing_lows) >= 2:
+            # Higher Highs + Higher Lows = bullish
+            if swing_highs[-1] > swing_highs[-2] and swing_lows[-1] > swing_lows[-2]:
+                struct_bull = True
+            # Lower Highs + Lower Lows = bearish
+            elif swing_highs[-1] < swing_highs[-2] and swing_lows[-1] < swing_lows[-2]:
+                struct_bear = True
+
         choch_bull, choch_bear = _detect_choch(swing_highs, swing_lows, price)
 
         fvg = _detect_fvg(df, cfg.get("fvg_min_size_pct", 0.15))
         ob  = _detect_order_block(df, cfg.get("ob_lookback", 50))
 
-        bias = "long" if (bos_bull or choch_bull) else (
-               "short" if (bos_bear or choch_bear) else "neutral"
+        bias = "long" if (bos_bull or choch_bull or struct_bull) else (
+               "short" if (bos_bear or choch_bear or struct_bear) else "neutral"
         )
 
         return {
@@ -401,6 +418,8 @@ def calc_smc(ohlcv: list, cfg: dict) -> Optional[dict]:
             "bos_bear":    bos_bear,
             "choch_bull":  choch_bull,
             "choch_bear":  choch_bear,
+            "struct_bull": struct_bull,
+            "struct_bear": struct_bear,
             "fvg":         fvg,
             "order_block": ob,
             "last_sh":     last_sh,
