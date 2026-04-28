@@ -168,10 +168,14 @@ class DataFeed:
                 url, heartbeat=30, receive_timeout=60, max_msg_size=0,
             ) as ws:
                 logger.info("WS Binance connecte et abonne")
+                first_msg = True
                 async for msg in ws:
                     if not self._running:
                         break
                     if msg.type == aiohttp.WSMsgType.TEXT:
+                        if first_msg:
+                            logger.info(f"[FEED DEBUG] PREMIER MESSAGE WS reçu: {msg.data[:200]}")
+                            first_msg = False
                         try:
                             await self._dispatch(json.loads(msg.data))
                         except Exception as e:
@@ -184,6 +188,20 @@ class DataFeed:
     async def _dispatch(self, msg: dict):
         stream = msg.get("stream", "")
         data   = msg.get("data", {})
+        # Compteur DEBUG (toutes les 500 messages)
+        if not hasattr(self, "_msg_count"):
+            self._msg_count = 0
+            self._msg_types = {}
+        self._msg_count += 1
+        # Bucket par type
+        if "@aggTrade" in stream:
+            self._msg_types["trade"] = self._msg_types.get("trade", 0) + 1
+        elif "@kline_" in stream:
+            self._msg_types["kline"] = self._msg_types.get("kline", 0) + 1
+        elif "@depth" in stream:
+            self._msg_types["depth"] = self._msg_types.get("depth", 0) + 1
+        if self._msg_count % 500 == 0:
+            logger.info(f"[FEED DEBUG] {self._msg_count} msgs reçus — {self._msg_types}")
         if "@aggTrade" in stream:
             await self._on_trade(data)
         elif "@kline_" in stream:
