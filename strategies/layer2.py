@@ -80,18 +80,18 @@ class Layer2:
         if rsi:
             signals["rsi"] = rsi
             if side == "long":
-                if rsi["oversold"] or rsi["bull_div"]:
+                if rsi["oversold"] or rsi["bull_div"] or rsi["value"] < 50:
                     score += 1
                     reasons.append(
                         f"RSI oversold ({rsi['value']:.1f})"
-                        if rsi["oversold"] else "RSI divergence haussière"
+                        if rsi["oversold"] else f"RSI favorable long ({rsi['value']:.1f})"
                     )
             else:
-                if rsi["overbought"] or rsi["bear_div"]:
+                if rsi["overbought"] or rsi["bear_div"] or rsi["value"] > 50:
                     score += 1
                     reasons.append(
                         f"RSI overbought ({rsi['value']:.1f})"
-                        if rsi["overbought"] else "RSI divergence baissière"
+                        if rsi["overbought"] else f"RSI favorable short ({rsi['value']:.1f})"
                     )
 
         valid = score >= self.min_confluence

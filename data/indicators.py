@@ -313,7 +313,7 @@ def calc_avwap(ohlcv: list, anchor_type: str = "swing_low") -> Optional[dict]:
         price  = float(close.iloc[-1])
 
         # Trouve le point d'ancrage (swing sur 10 bougies)
-        anchor_idx = _find_swing(high, low, anchor_type, lookback=10)
+        anchor_idx = _find_swing(high, low, anchor_type, lookback=5)
         if anchor_idx is None:
             return None
 
@@ -377,8 +377,8 @@ def calc_smc(ohlcv: list, cfg: dict) -> Optional[dict]:
         low   = df["low"]
         price = float(close.iloc[-1])
 
-        swing_highs = _swing_points(high, left=5, right=5, is_high=True)
-        swing_lows  = _swing_points(low,  left=5, right=5, is_high=False)
+        swing_highs = _swing_points(high, left=3, right=3, is_high=True)
+        swing_lows  = _swing_points(low,  left=3, right=3, is_high=False)
 
         last_sh = swing_highs[-1] if swing_highs else None
         last_sl = swing_lows[-1]  if swing_lows  else None
