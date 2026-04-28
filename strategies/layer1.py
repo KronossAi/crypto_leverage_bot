@@ -47,6 +47,12 @@ class Layer1:
         btc_trend = calc_ema_trend(btc_ohlcv) if btc_ohlcv else None
 
         if btc_trend:
+            logger.info(
+                f"[L1 DEBUG] {symbol} BTC price={btc_trend['price']:.2f} "
+                f"ema50={btc_trend['ema50']:.2f} ema200={btc_trend['ema200']:.2f} "
+                f"bullish={btc_trend['bullish']} bearish={btc_trend['bearish']} "
+                f"funding={funding_rates.get(symbol, 0.0)*100:.4f}%"
+            )
             if btc_trend["bullish"]:
                 bias = LONG
                 reasons.append("BTC EMA50>EMA200 bullish")

@@ -123,7 +123,12 @@ def calc_ema_cross(ohlcv: list, fast: int = 9, slow: int = 21) -> Optional[dict]
 
 
 def calc_ema_trend(ohlcv: list, fast: int = 50, slow: int = 200) -> Optional[dict]:
-    """EMA 50/200 pour le biais HTF"""
+    """
+    EMA 50/200 pour le biais HTF.
+    Logique en 2 niveaux :
+      - permissif (bullish/bearish) : ema50 vs ema200 — capte les phases intermédiaires
+      - strict (strict_bullish/strict_bearish) : alignement parfait price > ema50 > ema200
+    """
     df = _to_df(ohlcv)
     if df is None:
         return None
@@ -132,13 +137,24 @@ def calc_ema_trend(ohlcv: list, fast: int = 50, slow: int = 200) -> Optional[dic
         ema50     = float(EMAIndicator(close=close, window=fast).ema_indicator().iloc[-1])
         ema200    = float(EMAIndicator(close=close, window=slow).ema_indicator().iloc[-1])
         price     = float(close.iloc[-1])
+
+        # Strict : alignement parfait
+        strict_bullish = price > ema50 > ema200
+        strict_bearish = price < ema50 < ema200
+
+        # Permissif : alignement EMA50 vs EMA200 seul
+        ema_bullish = ema50 > ema200
+        ema_bearish = ema50 < ema200
+
         return {
-            "price":    price,
-            "ema50":    round(ema50, 6),
-            "ema200":   round(ema200, 6),
-            "bullish":  price > ema50 > ema200,
-            "bearish":  price < ema50 < ema200,
-            "bias":     "long" if price > ema200 else "short",
+            "price":          price,
+            "ema50":          round(ema50, 6),
+            "ema200":         round(ema200, 6),
+            "bullish":        ema_bullish,         # ← maintenant permissif
+            "bearish":        ema_bearish,         # ← maintenant permissif
+            "strict_bullish": strict_bullish,      # ← strict gardé pour layer 3 si besoin
+            "strict_bearish": strict_bearish,
+            "bias":           "long" if ema_bullish else ("short" if ema_bearish else "neutral"),
         }
     except Exception as e:
         logger.error(f"calc_ema_trend error: {e}")
