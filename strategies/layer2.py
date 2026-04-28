@@ -53,12 +53,14 @@ class Layer2:
                 reasons.append("SMC bearish (BOS/CHoCH/OB)")
             else:
                 reasons.append(f"SMC neutre ou opposé ({smc['bias']})")
+                logger.info(f"[L2 DEBUG] {symbol} side={side} SMC bias={smc['bias']} bos_bull={smc.get('bos_bull')} bos_bear={smc.get('bos_bear')} struct_bull={smc.get('struct_bull')} struct_bear={smc.get('struct_bear')}")
 
         # ── 2. AVWAP ──────────────────────────────────────────────────────
         anchor = "swing_low" if side == "long" else "swing_high"
         avwap  = calc_avwap(ohlcv, anchor_type=anchor)
         if avwap:
             signals["avwap"] = avwap
+            logger.info(f"[L2 DEBUG] {symbol} side={side} AVWAP above={avwap.get('above')} near={avwap.get('near_avwap')} price={avwap.get('price'):.4f} avwap={avwap.get('avwap'):.4f}")
             price            = avwap["price"]
             if side == "long":
                 if price > avwap["avwap"]:
