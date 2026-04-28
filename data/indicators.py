@@ -296,7 +296,7 @@ class CVDTracker:
 
     def get(self) -> dict:
         if not self._deltas:
-            return {"cvd": 0.0, "cvd_flip": False, "bullish": False}
+            return {"cvd": 0.0, "cvd_flip": False, "bullish": False, "bearish": False}
         cvd       = sum(self._deltas)
         prev_cvd  = sum(self._deltas[:-10]) if len(self._deltas) > 10 else 0
         cvd_flip  = (prev_cvd < 0 and cvd > 0) or (prev_cvd > 0 and cvd < 0)
