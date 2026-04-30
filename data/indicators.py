@@ -259,8 +259,8 @@ def calc_volume_spike(ohlcv: list, mult: float = 2.0, period: int = 20) -> Optio
         return None
     try:
         vol        = df["volume"]
-        vol_now    = float(vol.iloc[-1])
-        vol_avg    = float(vol.iloc[-period-1:-1].mean())
+        vol_now    = float(vol.iloc[-2])          # bougie COMPLÈTE (avant la courante)
+        vol_avg    = float(vol.iloc[-period-2:-2].mean())  # fenêtre décalée en cohérence
         vol_ratio  = vol_now / vol_avg if vol_avg > 0 else 0
         return {
             "vol_now":   round(vol_now, 2),
