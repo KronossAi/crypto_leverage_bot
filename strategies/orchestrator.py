@@ -56,6 +56,7 @@ class Orchestrator:
         circuit_breaker,
         macro_filter,
         capital:       float = 0.0,
+        fsm=None,
     ) -> Optional[TradeSignal]:
 
         # ── 0. Circuit breaker ────────────────────────────────────────────
@@ -97,6 +98,20 @@ class Orchestrator:
         if not l2["valid"]:
             logger.info(f"[{symbol}] L2 invalid: {l2['reasons'][-1]}")
             return None
+
+        # ── 3a. Check position déjà ouverte ──────────────────────────────────
+        if fsm:
+            open_pos = next(
+                (c for c in fsm.active() 
+                 if c.symbol == symbol and c.state.name not in ["CLOSED", "IDLE"]),
+                None
+            )
+            if open_pos:
+                logger.debug(
+                    f"[{symbol}] Position {open_pos.side.upper()} déjà OPEN "
+                    f"(état: {open_pos.state.name}, depuis {open_pos.open_time})"
+                )
+                return None
 
         side = l2["side"]  # "long" ou "short" — déterminé par L2
 

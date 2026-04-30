@@ -278,6 +278,7 @@ class TradingBot:
             return
 
         try:
+            fsm = self.active_engine.fsm
             signal = await self.orchestrator.analyze(
                 symbol        = symbol,
                 feed          = self.feed,
@@ -286,6 +287,7 @@ class TradingBot:
                 circuit_breaker = self.circuit,
                 macro_filter  = self.macro,
                 capital=self.portfolio.capital,
+                fsm=fsm,
             )
             if signal is None:
                 return
