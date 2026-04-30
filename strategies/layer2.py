@@ -100,14 +100,14 @@ class Layer2:
         if rsi:
             signals["rsi"] = rsi
             # Long : oversold OU bull divergence OU RSI < 50 (zone basse)
-            if rsi["oversold"] or rsi["bull_div"] or rsi["value"] < 45:
+            if rsi["oversold"] or rsi["bull_div"] or rsi["value"] < 50:
                 long_score += 1
                 long_reasons.append(
                     f"RSI oversold ({rsi['value']:.1f})"
                     if rsi["oversold"] else f"RSI favorable long ({rsi['value']:.1f})"
                 )
             # Short : overbought OU bear divergence OU RSI > 55 (zone haute)
-            elif rsi["overbought"] or rsi["bear_div"] or rsi["value"] > 55:
+            elif rsi["overbought"] or rsi["bear_div"] or rsi["value"] > 50:
                 short_score += 1
                 short_reasons.append(
                     f"RSI overbought ({rsi['value']:.1f})"
@@ -126,10 +126,12 @@ class Layer2:
         else:
             # Égalité → tie-breaker via htf_hint si pertinent
             if htf_hint == "long" and long_score > 0:
+                long_score += 1  # HTF compte comme vote confirmateur
                 side, score = "long", long_score
                 reasons.extend(long_reasons)
                 reasons.append("Tie-break par HTF bias (long)")
             elif htf_hint == "short" and short_score > 0:
+                short_score += 1  # HTF compte comme vote confirmateur
                 side, score = "short", short_score
                 reasons.extend(short_reasons)
                 reasons.append("Tie-break par HTF bias (short)")
