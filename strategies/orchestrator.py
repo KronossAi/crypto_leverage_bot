@@ -48,7 +48,7 @@ class Orchestrator:
         self.oi_engine = OIRegistry.get()
         self.liq_engine = LiquidationRegistry.get()
         self._last_analyze: dict[str, float] = {}  # Debounce double-trigger
-        self._last_analyze: dict[str, float] = {}  # Debounce double-trigger
+        self.started_at = time.monotonic()
 
     async def analyze(
         self,
@@ -61,6 +61,10 @@ class Orchestrator:
         capital:       float = 0.0,
         fsm=None,
     ) -> Optional[TradeSignal]:
+
+        # ── Warmup boot ──────────────────────────────────────────────────
+        if time.monotonic() - self.started_at < 60:
+            return None
 
         # ── 0. Circuit breaker ────────────────────────────────────────────
         # Guard double-trigger debounce 2s
@@ -114,7 +118,12 @@ class Orchestrator:
             logger.info(f"[{symbol}] L2 invalid: {l2['reasons'][-1]}")
             return None
 
-        # ── 3a. Check position déjà ouverte ──────────────────────────────────
+        # ── 3a. Limite globale positions ouvertes ─────────────────────────────
+        if fsm and len(list(fsm.active())) >= 1:
+            logger.info(f"[{symbol}] Max positions atteint -> skip signal")
+            return None
+
+        # ── 3b. Check position déjà ouverte ──────────────────────────────────
         if fsm:
             open_pos = next(
                 (c for c in fsm.active() 

@@ -44,6 +44,9 @@ class StateManager:
         try:
             with open(self.path) as f:
                 state = json.load(f)
+
+            # Paper mode : ne jamais restaurer positions ouvertes
+            state["positions"] = []
             portfolio.capital         = state["capital"]
             portfolio.initial_capital = state["initial_capital"]
             portfolio.trades          = [
