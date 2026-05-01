@@ -71,6 +71,9 @@ class PaperEngine:
                 )
             except Exception as e:
                 logger.error(f"[Telegram] Erreur notify_trade_open: {e}")
+                # Persiste l'état du FSM
+        if self.state_mgr:
+            self.state_mgr.save(self.port, self.fsm)
 
     async def on_tick(self, symbol: str, price: float, circuit_breaker=None):
         for ctx in list(self.fsm.active()):
