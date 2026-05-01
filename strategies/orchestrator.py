@@ -48,6 +48,7 @@ class Orchestrator:
         self.oi_engine = OIRegistry.get()
         self.liq_engine = LiquidationRegistry.get()
         self._last_analyze: dict[str, float] = {}  # Debounce double-trigger
+        self._last_analyze: dict[str, float] = {}  # Debounce double-trigger
 
     async def analyze(
         self,
@@ -62,6 +63,13 @@ class Orchestrator:
     ) -> Optional[TradeSignal]:
 
         # ── 0. Circuit breaker ────────────────────────────────────────────
+        # Guard double-trigger debounce 2s
+        _now = time.monotonic()
+        if _now - self._last_analyze.get(symbol, 0) < 2.0:
+            logger.debug(f"[{symbol}] analyze debounce - double-trigger ignore")
+            return None
+        self._last_analyze[symbol] = _now
+
         # Guard double-trigger debounce 2s
         _now = time.monotonic()
         if _now - self._last_analyze.get(symbol, 0) < 2.0:
