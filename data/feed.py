@@ -1,3 +1,5 @@
+import time
+last_msg_ts = time.time()
 """
 Data Feed — Bybit V5 WebSocket (données) + Hyperliquid (ordres)
 ─────────────────────────────────────────────────────────────────
@@ -396,3 +398,7 @@ class DataFeed:
 
     async def refresh_ohlcv(self, symbol: str, timeframe: str):
         await self._load_ohlcv(symbol, timeframe)
+
+if time.time() - last_msg_ts > 30:
+    logger.error("WS_FREEZE_DETECTED")
+
