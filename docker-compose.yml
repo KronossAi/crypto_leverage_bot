@@ -9,4 +9,4 @@ services:
       - .env
     volumes:
       - ./logs:/app/logs
-      - ./config:/app/config
+      - ./config:/app/.config

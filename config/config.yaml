@@ -59,4 +59,4 @@ regime:
   lv_multiplier: 0.8             # ATR14 < ATR50 × 0.8 → LV
   atr_spike_multiplier: 3.0      # ATR spike >300% → kill switch
 
-max_concurrent_positions: 3
+max_concurrent_positions: 2
