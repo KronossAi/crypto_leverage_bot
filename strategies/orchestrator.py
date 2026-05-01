@@ -70,6 +70,11 @@ class Orchestrator:
         if blackout:
             logger.debug(f"[{symbol}] Macro blackout: {bl_reason}")
             return None
+        
+        # ── 0c. Check max positions ───────────────────────────────────────
+        if fsm and len(fsm.active()) >= self.config["max_concurrent_positions"]:
+            logger.debug(f"[{symbol}] Max positions atteint ({len(fsm.active())})")
+            return None
 
         # ── 1. Régime ─────────────────────────────────────────────────────
         regime = self.regime.detect(feed, symbol, timeframes["mtf"])
