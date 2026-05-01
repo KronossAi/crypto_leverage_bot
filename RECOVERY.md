@@ -159,3 +159,16 @@ grep "Trade ferme" ~/crypto_leverage_bot/logs/bot.log | tail -5
 **Récupération** : Rebuild propre via Cloud Console (Ubuntu 24.04 standard, sans chiffrement) + réinstallation complète du bot. Durée : ~1h.
 
 **Leçon** : Pour un VPS Hetzner, le chiffrement LUKS n'apporte pas de protection significative et augmente énormément la complexité. Préférer setup standard + backups Hetzner activés + snapshots avant manipulation risquée.
+
+## 🐛 BUG FIX #2 — Doublon SIGNAL (01/05 @ 01h)
+
+**Symptôme :** ETH/XRP généraient SIGNAL toutes les 30-60sec malgré position OPEN existante
+**Root cause 1 :** logger.debug() non visible → check "déjà OPEN" s'exécutait mais message pas loggé
+**Root cause 2 :** state_mgr.save() jamais appelée → positions pas persistées → check inefficace
+
+**Fix appliqué :**
+1. orchestrator.py L111 : logger.debug() → logger.info() pour visibilité
+2. paper_engine.py L73 : ajout state_mgr.save() après on_signal()
+3. state_manager.py L32 : logger.debug() → logger.info() pour visibilité
+
+**Validation :** state.json contient BTC, ETH, XLM @ 01:16:50 ✅
