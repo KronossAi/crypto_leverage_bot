@@ -107,7 +107,7 @@ class Orchestrator:
                 None
             )
             if open_pos:
-                logger.info(
+                logger.debug(
                     f"[{symbol}] Position {open_pos.side.upper()} déjà OPEN "
                     f"(état: {open_pos.state.name}, depuis {open_pos.open_time})"
                 )
@@ -129,11 +129,11 @@ class Orchestrator:
         if btc_trend:
             # Si L2 dit long mais HTF strictement bearish → BLOQUE
             if side == "long" and btc_trend.get("strict_bearish"):
-                logger.info(f"[{symbol}] BLOCK — L2 long contre HTF strict_bearish")
+                logger.debug(f"[{symbol}] BLOCK — L2 long contre HTF strict_bearish")
                 return None
             # Si L2 dit short mais HTF strictement bullish → BLOQUE
             if side == "short" and btc_trend.get("strict_bullish"):
-                logger.info(f"[{symbol}] BLOCK — L2 short contre HTF strict_bullish")
+                logger.debug(f"[{symbol}] BLOCK — L2 short contre HTF strict_bullish")
                 return None
 
         # ── 4. Layer 3 — LTF trigger ──────────────────────────────────────

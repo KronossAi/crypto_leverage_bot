@@ -251,10 +251,6 @@ class TradingBot:
             if self.paused:
                 continue
 
-            # Analyse périodique
-            for symbol in self.config["pairs"]:
-                await self._analyze(symbol)
-
             # Refresh funding
             if elapsed % FUNDING_REFRESH == 0:
                 await self._refresh_funding()
@@ -275,6 +271,11 @@ class TradingBot:
         daily = self.portfolio.daily_trades_count()
         max_d = self.config["limits"]["max_trades_per_day"]
         if daily >= max_d:
+            return
+
+        # Guard FSM : skip si symbole déjà actif
+        active_symbols = {ctx.symbol for ctx in self.active_engine.fsm.active()}
+        if symbol in active_symbols:
             return
 
         try:
