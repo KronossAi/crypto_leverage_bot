@@ -107,7 +107,7 @@ class Orchestrator:
                 None
             )
             if open_pos:
-                logger.debug(
+                logger.info(
                     f"[{symbol}] Position {open_pos.side.upper()} déjà OPEN "
                     f"(état: {open_pos.state.name}, depuis {open_pos.open_time})"
                 )
