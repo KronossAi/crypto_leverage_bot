@@ -217,7 +217,7 @@ class DataFeed:
                             break
                         if msg.type == aiohttp.WSMsgType.TEXT:
                             if first_msg:
-                                logger.info(
+                                logger.debug(
                                     f"[FEED DEBUG] PREMIER MSG WS: {msg.data[:200]}"
                                 )
                                 first_msg = False
@@ -269,7 +269,7 @@ class DataFeed:
         elif topic.startswith("orderbook."):
             self._msg_types["depth"] = self._msg_types.get("depth", 0) + 1
         if self._msg_count % 500 == 0:
-            logger.info(
+            logger.debug(
                 f"[FEED DEBUG] {self._msg_count} msgs reçus — {self._msg_types}"
             )
 

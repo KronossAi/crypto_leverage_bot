@@ -148,3 +148,7 @@ class RiskManager:
     def resume(self):
         self._halted = False
         logger.info("Risk manager réactivé")
+
+import logging
+logger = logging.getLogger(__name__)
+logger.info("RISK CALC MODULE LOADED")

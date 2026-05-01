@@ -28,6 +28,10 @@ class PaperEngine:
         self.telegram  = telegram  # injecté pour notifications
 
     async def on_signal(self, signal: TradeSignal, circuit_breaker=None):
+        logger.info(
+            f"[PAPER] Signal recu | {signal.symbol} {signal.side.upper()} | "
+            f"Conf: {signal.confidence}%"
+        )
         if self.port.daily_trades_count() >= self.max_daily_trades:
             logger.warning("Limite journaliere atteinte — signal ignore")
             return
@@ -76,6 +80,7 @@ class PaperEngine:
             self.state_mgr.save(self.port, self.fsm)
 
     async def on_tick(self, symbol: str, price: float, circuit_breaker=None):
+        logger.debug(f"[PAPER] Tick | {symbol} @ {price:.4f}")
         for ctx in list(self.fsm.active()):
             if ctx.symbol != symbol:
                 continue
@@ -198,10 +203,12 @@ class PaperEngine:
             new_sl = price - initial_risk
             if new_sl > ctx.sl:
                 ctx.on_manage(new_sl)
+                logger.info(f"[PAPER] Trailing SL {ctx.symbol} -> {new_sl:.4f}")
         else:
             new_sl = price + initial_risk
             if new_sl < ctx.sl:
                 ctx.on_manage(new_sl)
+                logger.info(f"[PAPER] Trailing SL {ctx.symbol} -> {new_sl:.4f}")
 
     async def _funding_cost(self, ctx, key: str):
         next_f = self._funding.get(key)

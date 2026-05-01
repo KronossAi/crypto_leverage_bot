@@ -4,6 +4,7 @@ Architecture 3 layers : HTF bias → MTF confluence → LTF trigger
 """
 import asyncio
 import logging
+logger = logging.getLogger(__name__)
 import os
 import signal
 import sys
@@ -373,6 +374,8 @@ class TradingBot:
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 async def main():
+    logger.info("BOT START | Initialisation services")
+
     setup_logging(os.getenv("LOG_LEVEL", "INFO"), file_only=True)
     bot  = TradingBot()
     loop = asyncio.get_event_loop()
