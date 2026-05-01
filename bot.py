@@ -213,6 +213,7 @@ class TradingBot:
                 return
             if timeframe != self.config["timeframes"]["ltf"]:
                 return
+            self.logger.info(f"[BAR] {symbol} tf={timeframe}")
             await self._analyze(symbol)
 
         async def on_trade(symbol: str, price: float, qty: float, is_maker: bool):
@@ -245,11 +246,14 @@ class TradingBot:
         elapsed          = 0
 
         while self._running:
-            await asyncio.sleep(60)
+            await asyncio.sleep(15)
             elapsed += 60
 
             if self.paused:
                 continue
+
+            for symbol in self.config["pairs"]:
+                await self._analyze(symbol)
 
             # Refresh funding
             if elapsed % FUNDING_REFRESH == 0:

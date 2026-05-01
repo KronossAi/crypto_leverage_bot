@@ -70,13 +70,6 @@ class Orchestrator:
             return None
         self._last_analyze[symbol] = _now
 
-        # Guard double-trigger debounce 2s
-        _now = time.monotonic()
-        if _now - self._last_analyze.get(symbol, 0) < 2.0:
-            logger.debug(f"[{symbol}] analyze debounce - double-trigger ignore")
-            return None
-        self._last_analyze[symbol] = _now
-
         can, reason = circuit_breaker.can_trade(capital)  # capital passé par le bot
         if not can:
             logger.debug(f"[{symbol}] Circuit breaker: {reason}")
