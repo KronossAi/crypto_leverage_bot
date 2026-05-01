@@ -82,6 +82,18 @@ class PaperEngine:
     async def on_tick(self, symbol: str, price: float, circuit_breaker=None):
         logger.debug(f"[PAPER] Tick | {symbol} @ {price:.4f}")
         for ctx in list(self.fsm.active()):
+            # Timeout position paper
+            now = datetime.utcnow()
+            max_minutes = 90 if ctx.symbol == "BTC" else 60
+            minutes_open = (now - ctx.open_time).total_seconds() / 60
+
+            if minutes_open >= max_minutes:
+                logger.info(
+                    f"[PAPER] Timeout {ctx.symbol} | {minutes_open:.0f} min"
+                )
+                await self._close(ctx, price, "TIMEOUT", circuit_breaker)
+                continue
+
             if ctx.symbol != symbol:
                 continue
             key = f"{symbol}|{ctx.strategy}"

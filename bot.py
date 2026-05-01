@@ -376,7 +376,7 @@ class TradingBot:
 async def main():
     logger.info("BOT START | Initialisation services")
 
-    setup_logging(os.getenv("LOG_LEVEL", "INFO"), file_only=True)
+    setup_logging(os.getenv("LOG_LEVEL", "INFO"), file_only=False)
     bot  = TradingBot()
     loop = asyncio.get_event_loop()
 
