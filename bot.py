@@ -247,7 +247,7 @@ class TradingBot:
 
         while self._running:
             await asyncio.sleep(15)
-            elapsed += 60
+            elapsed += 15
 
             if self.paused:
                 continue
