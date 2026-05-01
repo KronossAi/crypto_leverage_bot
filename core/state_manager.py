@@ -33,7 +33,7 @@ class StateManager:
             }
             with open(self.path, "w") as f:
                 json.dump(state, f, indent=2)
-            logger.debug(f"Etat sauvegarde -> {self.path}")
+            logger.info(f"Etat sauvegarde -> {self.path}")
         except Exception as e:
             logger.error(f"Erreur sauvegarde etat: {e}")
 
