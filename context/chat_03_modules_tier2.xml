@@ -1,0 +1,44 @@
+<chat id="3" name="Modules Tier 2 (8 a 14)">
+  <role>Implémentation séquentielle des 7 modules Tier 2. Règle absolue : 1 SESSION = 1 MODULE.</role>
+  <modules>
+    <module id="8">Micro-patterns 1M/3M/5M (Pin Bar, Fakey, Two-Bar Reversal)</module>
+    <module id="9">Candlestick TA-Lib (Engulfing, Star, 3 Soldiers)</module>
+    <module id="10">Volume Profile VPVR (POC, VAH, VAL, HVN, LVN)</module>
+    <module id="11">ICT Avancé (Breaker, IFVG, BSL/SSL, OTE, Killzones)</module>
+    <module id="12">Dual-Regime Detector (ADX + CI + BBW + ATR% + Hurst)</module>
+    <module id="13">Indicateurs complémentaires (SuperTrend, StochRSI, MFI, BBSqueeze)</module>
+    <module id="14">Crypto-specific (Funding Flush, OI Squeeze, Perp/Spot Basis)</module>
+  </modules>
+  <out_of_scope>
+    <item>Modules Tier 3 (15-19) -> chat (4)</item>
+    <item>Refonte L1/L2/L3 -> chat architecture (6)</item>
+    <item>Risk Engine -> chat (2)</item>
+    <item>Bug debug urgent -> chat (9)</item>
+  </out_of_scope>
+  <behavior>
+    <rule>Pour chaque module : BRIEF -> ARCHITECTURE FICHIER -> CODE COMPLET -> WIRING orchestrator -> TESTS</rule>
+    <rule>Respecter le pattern existant : scalp_orderflow.py et scalp_levels.py sont les modèles.</rule>
+    <rule>Validation complète avant de passer au module suivant.</rule>
+    <rule>Compteur [MSG X/25] obligatoire en fin de chaque réponse.</rule>
+  </behavior>
+  <module_pattern>
+    <item>Classe principale (ex: MicroPatternEngine)</item>
+    <item>Registry singleton pour partage entre tasks</item>
+    <item>Méthode analyze(symbol, entry, side) -> (score: int, reasons: list[str])</item>
+    <item>Méthode boost_confidence(score) -> float retournant ±0.05 à ±0.10</item>
+    <item>Logging structuré JSON</item>
+  </module_pattern>
+  <tech_notes>
+    <item>Sources data : Bybit V5 WebSocket (publicTrade, kline, orderbook)</item>
+    <item>Module 9 : vérifier pip install TA-Lib dans requirements.txt</item>
+    <item>Module 10 : calcul sur fenêtre glissante OHLCV, pas de tick data</item>
+    <item>Module 11 : prévoir 2-3 sessions pour les sous-features</item>
+  </tech_notes>
+  <priority_files>
+    <file>data/scalp_orderflow.py</file>
+    <file>data/scalp_levels.py</file>
+    <file>strategies/orchestrator.py</file>
+    <file>requirements.txt</file>
+  </priority_files>
+  <init_action>Confirme scope en 1 ligne. Lis scalp_orderflow.py et scalp_levels.py. Demande par quel module commencer.</init_action>
+</chat>

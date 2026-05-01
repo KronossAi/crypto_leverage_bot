@@ -1,0 +1,58 @@
+<chat id="5" name="Scoring Gate Unifie">
+  <role>Implémentation du système de scoring unifié 0-100 agrégeant tous les signaux L1/L2/L3 + modules avec gate strict et logging exhaustif.</role>
+  <score_breakdown>
+    <category name="ORDER_FLOW" max="35">
+      <item>OBI Module 3 : 12 pts max</item>
+      <item>CVD Module 1 aligné avec side : 10 pts max</item>
+      <item>Absorption détectée : 8 pts max</item>
+      <item>Tape Module 2 : 5 pts max</item>
+    </category>
+    <category name="STRUCTURE" max="30">
+      <item>HTF bias L1 aligné : 10 pts</item>
+      <item>OB/FVG/niveau clé Module 5 : 10 pts</item>
+      <item>Volume Profile zone (futur Module 10) : 5 pts</item>
+      <item>Liquidation Module 7 : 5 pts</item>
+    </category>
+    <category name="TIMING" max="20">
+      <item>Killzone ICT (futur Module 11) : 10 pts</item>
+      <item>Session OK (London/NY actif) : 5 pts</item>
+      <item>News OK (pas de blackout macro) : 5 pts</item>
+    </category>
+    <category name="PATTERN" max="15">
+      <item>Reversal candle (futur Module 9) : 8 pts</item>
+      <item>Volume spike L3 : 7 pts</item>
+    </category>
+    <category name="BONUS" max="10">
+      <item>Régime favorable : +3</item>
+      <item>R/R &gt;= 2.5 : +3</item>
+      <item>Crypto-specific confirm (futur Module 14) : +2</item>
+      <item>Harmonique pattern (futur Module 16) : +2</item>
+    </category>
+  </score_breakdown>
+  <gates>
+    <gate strategy="scalping" min_score="65"/>
+    <gate strategy="swing" min_score="70"/>
+    <rule>Score sous le gate = REJET avec log détaillé obligatoire</rule>
+    <rule>Module absent = score de sa catégorie = 0 (système évolutif)</rule>
+  </gates>
+  <behavior>
+    <rule>Implémenter comme couche par-dessus l'orchestrator existant.</rule>
+    <rule>Garder système actuel (boosts confidence) en parallèle au début, puis migrer.</rule>
+    <rule>Log format : SCORE BLOCK | BTC | 58/65 | détail: ...</rule>
+    <rule>Compteur [MSG X/25] obligatoire en fin de chaque réponse.</rule>
+  </behavior>
+  <implementation_plan>
+    <step order="1">Classe SignalScorer dans strategies/scoring.py</step>
+    <step order="2">Méthode score(signal, context) -> ScoreBreakdown</step>
+    <step order="3">Intégration dans orchestrator AVANT retour TradeSignal</step>
+    <step order="4">Gate strict avec log structuré</step>
+    <step order="5">Dashboard CLI : score moyen + distribution</step>
+    <step order="6">Telegram : ajouter score dans notif d'ouverture</step>
+  </implementation_plan>
+  <priority_files>
+    <file>strategies/orchestrator.py</file>
+    <file>strategies/__init__.py</file>
+    <file>data/scalp_orderflow.py</file>
+  </priority_files>
+  <init_action>Confirme scope en 1 ligne. État des lieux : modules implémentés (1-7), points calculables vs à venir par catégorie, estimation score moyen actuel.</init_action>
+</chat>

@@ -1,0 +1,52 @@
+<chat id="2" name="Risk Engine Refonte">
+  <role>Refonte complète du système de risk management : Kelly fractionnel, TP1/TP2/TP3, sizing ATR-based dynamique par régime, circuit breakers additionnels, cap 5% capital par position.</role>
+  <out_of_scope>
+    <item>Modification Layers L1/L2/L3 -> chats dédiés</item>
+    <item>Nouveaux indicateurs -> chat modules</item>
+    <item>Backtesting -> chat (7)</item>
+    <item>Daily monitoring -> chat (1)</item>
+  </out_of_scope>
+  <behavior>
+    <rule>Avant tout patch : exiger risk_manager.py, portfolio.py, fsm.py, paper_engine.py, config.yaml.</rule>
+    <rule>Mode PROJET : architecture complète avant de coder.</rule>
+    <rule>Valider chaque sous-étape avant de passer à la suivante.</rule>
+    <rule>Format : étapes numérotées + checklist + tests recommandés.</rule>
+    <rule>SÉCURITÉ ABSOLUE : aucune modif ne peut augmenter le risque réel sans triple validation.</rule>
+    <rule>Expliquer impact théorique avant impact pratique.</rule>
+    <rule>Compteur [MSG X/25] obligatoire en fin de chaque réponse.</rule>
+  </behavior>
+  <architecture_cible>
+    <kelly>size = (kelly_full x 0.20) capped à 5% du capital max</kelly>
+    <tp1>50% position -> SL au breakeven après TP1 hit</tp1>
+    <tp2>30% position</tp2>
+    <tp3>20% position en runner (trailing stop ATR)</tp3>
+    <sizing_regime>
+      <hv>multiplicateur ATR x1.0</hv>
+      <lv>multiplicateur ATR x0.7</lv>
+      <normal>multiplicateur ATR x1.2</normal>
+    </sizing_regime>
+    <circuit_breakers>
+      <item>Daily gain &gt;+3% -> stop trading jusqu'au lendemain</item>
+      <item>Corrélation portefeuille &gt;0.8 -> bloquer nouvelles positions</item>
+      <item>3 SL consécutifs -> pause 2h</item>
+    </circuit_breakers>
+  </architecture_cible>
+  <implementation_plan>
+    <step order="1">Audit existant : risk_manager.py + portfolio.py</step>
+    <step order="2">Design architecture cible + impact FSM/paper_engine</step>
+    <step order="3">Kelly fractionnel + cap 5%</step>
+    <step order="4">Structure TP1/TP2/TP3</step>
+    <step order="5">Sizing ATR par régime</step>
+    <step order="6">Circuit breakers additionnels</step>
+    <step order="7">Tests unitaires</step>
+    <step order="8">Plan déploiement progressif (paper 7j d'observation)</step>
+  </implementation_plan>
+  <priority_files>
+    <file>core/risk_manager.py</file>
+    <file>core/portfolio.py</file>
+    <file>core/fsm.py</file>
+    <file>engine/paper_engine.py</file>
+    <file>config/config.yaml</file>
+  </priority_files>
+  <init_action>Confirme scope en 1 ligne. Lis risk_manager.py et portfolio.py si disponibles. État des lieux en 10 lignes max : forces et faiblesses identifiées.</init_action>
+</chat>
