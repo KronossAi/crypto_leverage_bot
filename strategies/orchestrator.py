@@ -9,6 +9,7 @@ Entrée uniquement si L1 + L2 + L3 validés.
 Calcule SL/TP1/TP2 selon la config.
 """
 import logging
+import time
 from typing import Optional
 
 from core.risk_manager   import TradeSignal
@@ -46,6 +47,7 @@ class Orchestrator:
         self.key_levels = KeyLevelsRegistry.get()
         self.oi_engine = OIRegistry.get()
         self.liq_engine = LiquidationRegistry.get()
+        self._last_analyze: dict[str, float] = {}  # Debounce double-trigger
 
     async def analyze(
         self,
@@ -60,6 +62,13 @@ class Orchestrator:
     ) -> Optional[TradeSignal]:
 
         # ── 0. Circuit breaker ────────────────────────────────────────────
+        # Guard double-trigger debounce 2s
+        _now = time.monotonic()
+        if _now - self._last_analyze.get(symbol, 0) < 2.0:
+            logger.debug(f"[{symbol}] analyze debounce - double-trigger ignore")
+            return None
+        self._last_analyze[symbol] = _now
+
         can, reason = circuit_breaker.can_trade(capital)  # capital passé par le bot
         if not can:
             logger.debug(f"[{symbol}] Circuit breaker: {reason}")
