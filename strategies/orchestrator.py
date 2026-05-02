@@ -208,11 +208,24 @@ class Orchestrator:
 
         # ── 6. Confidence score ───────────────────────────────────────────
         confidence = 0.5
-        confidence += l2["score"] * 0.1      # +0.1 par signal L2
+
+        # L2 = validation direction uniquement (pas pondération directe)
+        try:
+            if l2["score"] >= 2:
+                confidence += 0.1
+            else:
+                confidence -= 0.1
+        except Exception as e:
+            logger.error(f"L2 confidence error: {e}")
+
+        # L3 trigger
         if l3["triggered"]:
             confidence += 0.15
+
+        # Régime
         if regime == "hv":
             confidence += 0.05
+
         # Bonus si L1 aligné avec L2 (confluence HTF)
         if l1_aligned:
             confidence += 0.10
@@ -321,6 +334,12 @@ class Orchestrator:
         self, side, entry, atr, l2_signals, symbol, timeframes, feed
     ):
         """Calcule SL sous/sur OB ou ATR × 1.5 puis TP1/TP2"""
+
+
+        # Clamp ATR pour éviter SL trop large en volatilité extrême
+        atr = min(atr, entry * 0.02)
+
+
         sl_dist = atr * 1.5
 
         # Préfère SL sur Order Block si disponible
