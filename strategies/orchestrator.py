@@ -118,6 +118,7 @@ class Orchestrator:
         if not l2["valid"]:
             logger.info(f"[{symbol}] L2 invalid: {l2['reasons'][-1]}")
             return None
+        l2_side = l2.get("side") if isinstance(l2, dict) else None
 
         # ── 3a. Limite globale positions ouvertes ─────────────────────────────
         if fsm and len(list(fsm.active())) >= 1:
@@ -148,7 +149,8 @@ class Orchestrator:
         # ── 3b. Validation L1 vs L2 — détection contre-tendance brutale ──
         l1_aligned = (htf_hint == side)
         l1_strict_against = False
-        btc_ohlcv = feed.get_ohlcv("BTC", timeframes["htf"])
+        htf = timeframes.get("htf")  # HTF standardisé
+        btc_ohlcv = feed.get_ohlcv("BTC", htf)
         from data.indicators import calc_ema_trend
         btc_trend = calc_ema_trend(btc_ohlcv) if btc_ohlcv else None
         if btc_trend:
@@ -165,7 +167,12 @@ class Orchestrator:
         logger.info(f"[{symbol}] ENTER L3")
 
         try:
-            l3 = self.layer3.evaluate(symbol, side, feed, timeframes)
+            l3 = self.layer3.evaluate(
+                symbol=symbol,
+                side=side,
+                feed=feed,
+                timeframes=timeframes
+            )
             logger.debug(f"[{symbol}] L3 RAW: {l3}")
         except Exception as e:
             logger.error(f"[{symbol}] L3 CRASH: {e}", exc_info=True)
@@ -209,14 +216,16 @@ class Orchestrator:
         # ── 6. Confidence score ───────────────────────────────────────────
         confidence = 0.5
 
-        # L2 = validation direction uniquement (pas pondération directe)
         try:
-            if l2["score"] >= 2:
+            l2_score = l2.get("score", 0) if isinstance(l2, dict) else 0
+
+            if l2_score >= 2:
                 confidence += 0.1
             else:
                 confidence -= 0.1
+
         except Exception as e:
-            logger.error(f"L2 confidence error: {e}")
+             logger.error(f"L2 confidence error: {e}")
 
         # L3 trigger
         if l3["triggered"]:
@@ -333,36 +342,48 @@ class Orchestrator:
     def _calc_sl_tp(
         self, side, entry, atr, l2_signals, symbol, timeframes, feed
     ):
-        """Calcule SL sous/sur OB ou ATR × 1.5 puis TP1/TP2"""
+        """Calcule SL sous/sur OB ou ATR x 1.5 puis TP1/TP2"""
 
+        # --- Sécurité ATR
+        if atr is None or atr <= 0:
+            logger.error(f"[{symbol}] ATR invalide: {atr}")
+            atr = entry * 0.01
 
-        # Clamp ATR pour éviter SL trop large en volatilité extrême
+        # --- Clamp ATR (max 2%)
         atr = min(atr, entry * 0.02)
 
-
+        # --- SL base
         sl_dist = atr * 1.5
 
-        # Préfère SL sur Order Block si disponible
+        # --- Order Block
         smc = l2_signals.get("smc", {})
-        ob  = smc.get("order_block") if smc else None
+        ob = smc.get("order_block") if smc else None
         if ob:
-            if side == "long" and ob["type"] == "bullish":
+            if side == "long" and ob.get("type") == "bullish":
                 ob_dist = entry - ob["bottom"]
                 if ob_dist > 0:
                     sl_dist = max(ob_dist, sl_dist)
-            elif side == "short" and ob["type"] == "bearish":
+            elif side == "short" and ob.get("type") == "bearish":
                 ob_dist = ob["top"] - entry
                 if ob_dist > 0:
                     sl_dist = max(ob_dist, sl_dist)
 
+        # --- Calcul SL
+        sl = entry - sl_dist if side == "long" else entry + sl_dist
+
+        # --- Sécurité risk
+        risk = abs(entry - sl)
+        if risk <= 0:
+            logger.error(f"[{symbol}] Invalid risk: entry={entry}, sl={sl}")
+            return None, None, None
+
+        # --- TP
         if side == "long":
-            sl  = entry - sl_dist
-            tp1 = entry + sl_dist * 1.5
-            tp2 = entry + sl_dist * 3.0
+            tp1 = entry + risk * 1.5
+            tp2 = entry + risk * 3.0
         else:
-            sl  = entry + sl_dist
-            tp1 = entry - sl_dist * 1.5
-            tp2 = entry - sl_dist * 3.0
+            tp1 = entry - risk * 1.5
+            tp2 = entry - risk * 3.0
 
         return sl, tp1, tp2
 
