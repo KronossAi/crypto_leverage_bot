@@ -33,7 +33,13 @@ class Layer3:
         vol     = None
 
         if not ohlcv:
-            return {"triggered": False, "entry_price": 0, "reasons": ["Pas de données LTF"]}
+            result = {
+                "triggered": False,
+                "entry_price": 0,
+                "reasons": ["no_ohlcv"]
+            }
+            logger.debug(f"[L3 DEBUG] {symbol} result={result}")
+            return result
 
         price = float(ohlcv[-1][4]) if ohlcv else 0.0
 
@@ -88,13 +94,19 @@ class Layer3:
         )
 
         triggered = score >= 2  # Min 2/3
-        if triggered:
-            reasons.append(f"Layer 3 déclenché — {score}/3")
-        else:
-            reasons.append(f"Layer 3 non déclenché — {score}/3 (min 2)")
 
-        return {
-            "triggered":   triggered,
+        if triggered:
+            reasons.append(f"L3 OK {score}/3")
+        else:
+            reasons.append(f"L3 FAIL {score}/3")
+
+        result = {
+            "triggered": triggered,
             "entry_price": price,
-            "reasons":     reasons,
+            "reasons": reasons,
+            "score": score
         }
+
+        logger.debug(f"[L3 DEBUG] {symbol} result={result}")
+
+        return result

@@ -49,7 +49,14 @@ class PaperEngine:
         )
         if order is None:
             return
-        slip       = order.entry * 0.0005
+
+        logger.info(
+            f"TRADE {signal.symbol} {signal.side.upper()} "
+            f"tag={signal.tag} score={signal.score} "
+            f"RR={order.rr_ratio:.2f} size={order.size_usdc:.2f}"
+        )
+
+        slip = order.entry * 0.0005
         exec_price = order.entry + slip if signal.side == "long" else order.entry - slip
         ctx.on_signal(order.side, exec_price, order.sl, order.tp1, order.tp2)
         ctx.on_open(order.size_usdc, order.size_contracts, order.leverage, "paper")

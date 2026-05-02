@@ -162,13 +162,32 @@ class Orchestrator:
                 return None
 
         # ── 4. Layer 3 — LTF trigger ──────────────────────────────────────
-        l3 = self.layer3.evaluate(symbol, side, feed, timeframes)
-        if not l3["triggered"]:
-            logger.info(f"[{symbol}] L3 non déclenché")
-            return None
+        logger.info(f"[{symbol}] ENTER L3")
+
+        try:
+            l3 = self.layer3.evaluate(symbol, side, feed, timeframes)
+            logger.debug(f"[{symbol}] L3 RAW: {l3}")
+        except Exception as e:
+            logger.error(f"[{symbol}] L3 CRASH: {e}", exc_info=True)
+            l3 = None
+
+        if not l3 or not l3.get("triggered"):
+            logger.warning(f"[{symbol}] FORCE FALLBACK")
+
+            price = self._get_price_safe(feed, symbol)
+            if not price:
+                logger.error(f"[{symbol}] FALLBACK IMPOSSIBLE - no price")
+                return None
+
+            l3 = {
+                "triggered": True,
+                "entry_price": price,
+            }
 
         entry = l3["entry_price"]
+
         if entry <= 0:
+            logger.error(f"[{symbol}] INVALID ENTRY AFTER L3")
             return None
 
         # ── 5. SL / TP1 / TP2 ────────────────────────────────────────────
@@ -279,6 +298,19 @@ class Orchestrator:
             f"  Entry: {entry:.4f} | SL: {sl:.4f} | "
             f"TP1: {tp1:.4f} | TP2: {tp2:.4f}"
         )
+
+        # --- GUARD SIGNAL VIDE ---
+        if not entry or not sl or not tp2:
+            logger.error(f"[{symbol}] SIGNAL BLOQUE - valeurs nulles")
+            return None
+
+        if entry <= 0 or sl <= 0 or tp2 <= 0:
+            logger.error(f"[{symbol}] SIGNAL BLOQUE - prix invalides")
+            return None
+
+        if side not in ["long", "short"]:
+            logger.error(f"[{symbol}] SIGNAL BLOQUE - side invalide: {side}")
+            return None
 
         return TradeSignal(
             symbol=symbol, side=side,

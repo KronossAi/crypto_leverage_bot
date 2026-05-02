@@ -25,7 +25,8 @@ class TradeSignal:
     strategy:   str   = "orchestrator"
     confidence: float = 0.5
     regime:     str   = "normal"
-
+    tag: str = "A"
+    score: int = 0
 
 @dataclass
 class TradeOrder:
