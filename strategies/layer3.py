@@ -36,12 +36,21 @@ class Layer3:
             result = {
                 "triggered": False,
                 "entry_price": 0,
-                "reasons": ["no_ohlcv"]
+                "reasons": ["no_ohlcv"],
+                "score": 0
             }
             logger.debug(f"[L3 DEBUG] {symbol} result={result}")
             return result
 
         price = float(ohlcv[-1][4]) if ohlcv else 0.0
+
+        if price <= 0:
+            return {
+                "triggered": False,
+                "entry_price": 0,
+                "reasons": ["invalid_price"],
+                "score": 0
+            }
 
         # ── 1. EMA 9/21 cross ─────────────────────────────────────────────
         ema = calc_ema_cross(ohlcv, fast=9, slow=21)
@@ -80,25 +89,16 @@ class Layer3:
             reasons.append(f"Volume spike {vol['vol_ratio']:.1f}x")
 
         # Log debug détaillé
-        logger.info(
-            f"[L3 DEBUG] {symbol} side={side} score={score}/3 — "
-            f"EMA: cross_up={ema['cross_up'] if ema else None} "
-            f"cross_down={ema['cross_down'] if ema else None} "
-            f"above={ema['above'] if ema else None} | "
-            f"CVD: cvd={cvd['cvd'] if cvd else 'None'} "
-            f"flip={cvd['cvd_flip'] if cvd else None} "
-            f"bullish={cvd['bullish'] if cvd else None} "
-            f"bearish={cvd['bearish'] if cvd else None} | "
-            f"VOL: spike={vol['spike'] if vol else None} "
-            f"ratio={vol['vol_ratio'] if vol else None}"
+        logger.debug(
+            f"[L3 DEBUG] {symbol} side={side} score={score}/3 price={price}"
         )
 
-        triggered = score >= 2  # Min 2/3
+        triggered = score >= 1
 
         if triggered:
-            reasons.append(f"L3 OK {score}/3")
+            reasons.append(f"L3 triggered {score}/3")
         else:
-            reasons.append(f"L3 FAIL {score}/3")
+            reasons.append(f"L3 rejected {score}/3")
 
         result = {
             "triggered": triggered,
@@ -107,6 +107,8 @@ class Layer3:
             "score": score
         }
 
-        logger.debug(f"[L3 DEBUG] {symbol} result={result}")
+        logger.debug(
+            f"[L3 DEBUG] {symbol} side={side} score={score}/3 price={price}"
+        )
 
         return result

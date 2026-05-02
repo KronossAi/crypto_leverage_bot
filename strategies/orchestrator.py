@@ -172,18 +172,7 @@ class Orchestrator:
             l3 = None
 
         if not l3 or not l3.get("triggered"):
-            logger.warning(f"[{symbol}] FORCE FALLBACK")
-
-            price = self._get_price_safe(feed, symbol)
-            if not price:
-                logger.error(f"[{symbol}] FALLBACK IMPOSSIBLE - no price")
-                return None
-
-            l3 = {
-                "triggered": True,
-                "entry_price": price,
-            }
-
+            return None
         entry = l3["entry_price"]
 
         if entry <= 0:
@@ -290,6 +279,13 @@ class Orchestrator:
         confidence = max(0.10, min(confidence + liq_boost, 0.95))
         if liq_reasons:
             logger.info(f"[LiqHeatmap] {symbol} score={liq_score} boost={liq_boost:+.2f} — {liq_reasons}")
+
+        confidence = max(0.10, min(confidence, 0.95))
+
+        if confidence < 0.65:
+            logger.debug(f"[{symbol}] REJECT LOW CONFIDENCE {confidence:.2f}")
+            return None
+
 
         logger.info(
             f"SIGNAL | {symbol} {side.upper()} | "
