@@ -8,15 +8,18 @@ if (-not (Test-Path $venv)) {
     & "$PWD\venv\Scripts\pip.exe" install -r requirements.txt
 }
 
-$process = Start-Process -FilePath $venv -ArgumentList "bot.py" -PassThru
+$log = "$PWD\logs\runner.log"
 
-Start-Sleep -Seconds 120
+while ($true) {
+    $process = Start-Process `
+        -FilePath $venv `
+        -ArgumentList "bot.py" `
+        -RedirectStandardOutput $log `
+        -RedirectStandardError $log `
+        -PassThru
 
-if (!$process.HasExited) {
-    Stop-Process -Id $process.Id -Force
-    Write-Host "Test 2min OK (process killed)" -ForegroundColor Green
-    exit 0
-} else {
-    Write-Error "Bot stopped early"
-    exit 1
+    Wait-Process -Id $process.Id
+
+    Write-Host "Bot stopped -> restart in 5s" -ForegroundColor Yellow
+    Start-Sleep -Seconds 5
 }
